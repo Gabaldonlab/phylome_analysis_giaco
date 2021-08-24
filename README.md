@@ -5,25 +5,25 @@ This python package will allow to:
 
 * concatenate the alignments
 * build species tree
-* compute discordance between species and gene trees and analyze the results
+* Prepare data for discordance softwares (GeneRax and ecceTERA) and analyze the results
 
-Starting from a phylome sotred in PhylomeDB:
+Starting from a phylome stored in PhylomeDB:
 
 #### TODOs:
 
-
-* Documentation + errors mgmt!!!!
+* Documentation + errors mgmt + eventually autmatic testing
 * Add create partition model file as option for concat
 * add download phylome script.
-* test a lot many possible scenarios
 * examples and readme
 * change name plz
 
 Eventually
 
-* add other stuff from Marina scripts you did not use
+* Merge with other stuff from Marina scripts you did not use
 * add angst and other discordance softwares data creation scripts
 * greasifier???
+
+* Merge into phylomizer pipeline
 
 
 <!-- To use (with caution), simply do:
