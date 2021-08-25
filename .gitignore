@@ -9,8 +9,9 @@ dist/
 
 old_stuff/
 test_data/
-out_dir/
+out_dir*/
 notes.txt
 data_log.txt
 test.py
 t
+.ipynb_checkpoints

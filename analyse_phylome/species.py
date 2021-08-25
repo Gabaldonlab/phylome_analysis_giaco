@@ -3,7 +3,24 @@ import sys
 from .utils import load_species_name, load_species_name_whole, run_command
 
 
-def obtain_duptree_file(treeFile, duptreeFile):
+def obtain_duptree_file(treeFile, duptreeFile, midpoint=False):
+    """Prepare files for duptree.
+
+    Parameters
+    ----------
+    treeFile : str
+        best trees file from PhylomeDB
+    duptreeFile : str
+        File where the tress will be written
+    midpoint: bool
+        Midpoint root gene trees?
+
+    Returns
+    -------
+    type
+        File that will be the input of duptree
+
+    """
     print("Creating duptree file")
     outfile = open(duptreeFile, "w")
     for line in open(treeFile):
@@ -14,12 +31,11 @@ def obtain_duptree_file(treeFile, duptreeFile):
             leaf.name = leaf.species
         # this is very important! before each tree was rooted with midpoint rooting I don't know why.
         t.resolve_polytomy()
-        # #Root tree for new duptree
-        # try:
-        #     t.set_outgroup(t.get_midpoint_outgroup())
-        # except:
-        #     node = t.get_leaves()[0]
-        #     t.set_outgroup(node)
+        #Root tree for new duptree
+        # if root:
+        if midpoint:
+            t.set_outgroup(t.get_midpoint_outgroup())
+            #if spe2age:
         outfile.write(t.write(format=9) + "\n")
     outfile.close()
 
@@ -37,6 +53,27 @@ def load_species_tree(spTreeFile):
 
 
 def launch_duptree(fileName, spTreeFile, duptreePath, outDir, tagName):
+    """Run duptree.
+
+    Parameters
+    ----------
+    fileName : type
+        file produced by obtain_duptree_file()
+    spTreeFile : type
+        Output species tree file
+    duptreePath : str
+        Path of duptree exe
+    outDir : str
+        output directory
+    tagName : str
+        tag
+
+    Returns
+    -------
+    type
+        Duptree species tree
+
+    """
     # Launches duptree program to calculate the species tree and creates a species tree file
     cmd = (
         duptreePath
@@ -55,8 +92,3 @@ def launch_duptree(fileName, spTreeFile, duptreePath, outDir, tagName):
     run_command(cmd)
     cmd = "tail -n1 " + outDir + "/" + tagName + "results_duptree.txt > " + spTreeFile
     run_command(cmd)
-
-
-# ASTRAL
-
-# ./astral_c/ASTER/astral-pro -o all_astral/apro_phylome_$i.nwk -u 1 -t 4 all_best_trees/best_trees$i\_renamed.txt 2>&1 | tee all_astral/apro_phylome_$i.log

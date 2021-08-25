@@ -1,5 +1,6 @@
 import glob
 import ete3
+import os
 from .utils import (
     run_command,
     load_sequences,
@@ -13,7 +14,23 @@ from .utils import (
 
 
 def obtain_121_trees(treeFile, trees121File):
+    """Get 1-to-1 trees from a phylome.
+
+    Parameters
+    ----------
+    treeFile : str
+        Best_trees file of a phylome from PhylomeDB.
+    trees121File : str
+        Output file where the 121 trees will be written.
+
+    Returns
+    -------
+    type
+        121 trees file.
+
+    """
     outfile121 = open(trees121File, "w")
+    num = 0
     for line in open(treeFile):
         line = line.strip()
         dades = line.split()
@@ -22,10 +39,30 @@ def obtain_121_trees(treeFile, trees121File):
             outfile121.write(
                 dades[0] + "\t" + str(len(t.get_species())) + "\t" + dades[-1] + "\n"
             )
+            num += 1
     outfile121.close()
+    print("there are ", num, " 121 trees")
 
 
 def concatenate_alignments_from_path(path, outFileName, spe2age, readalPath):
+    """Concatenate alignment given the path of a directory where alns are stored.
+
+    Parameters
+    ----------
+    path : str
+        Dir of the alns.
+    outFileName : str
+        Output file name.
+    spe2age : dict
+        species2age dictionary obtained with build_spe2age()
+    readalPath : str
+        path of readal exe
+
+    Returns
+    -------
+    type
+        concatenated fasta.
+    """
     # species_codes = []
     concatenatedAlg = {}
     for fileName in glob.glob(path + "/*"):
@@ -34,7 +71,7 @@ def concatenate_alignments_from_path(path, outFileName, spe2age, readalPath):
         run_command(cmd, True)
         seqs = load_sequences("t", "")
         added = []
-        # Add sequences to concateanted alignment
+        # Add sequences to concatenated alignment
         for code in seqs:
             spe = code.split("_")[1].split("|")[0]
             if spe not in concatenatedAlg:
@@ -127,11 +164,39 @@ def build_extra_concatenated_alg2(
     pathsFile,
     outDir,
     readalPath,
+    spe2age,#=None,
     min=5,
-    spe2age=None,
-    midpoint=False,
+    # midpoint=False,
     at_least=100,
+    max_length=50000
 ):
+    """Concatenate alignments collapsing clade specific duplications.
+
+    Parameters
+    ----------
+    treeFile : str
+        best_trees file from phylomeDB
+    pathsFile : str
+        Pathfile created with create_pathfile()
+    outDir : str
+        output directory
+    readalPath : str
+        path of readal exe
+    spe2age : dict
+        Species 2 age dictionary or species list
+    min : num
+        Consider only trees with at least min species
+    at_least : num
+        Stop the concatenation when there are at least `at_least` gene families concatenated.
+    max_length : num
+        Stop the concatenation when the aln is `max_length` positions long.
+
+    Returns
+    -------
+    type
+        A outDir/concatenated_extra2 dir where the alignments, the concatenated fasta and phy and some stats are stored.
+
+    """
     # Create output folders
     concatDir = outDir + "/concatenated_extra2/"
     create_folder(concatDir)
@@ -146,7 +211,7 @@ def build_extra_concatenated_alg2(
         dades = line.split("\t")
         code = dades[0]
         t = load_tree(dades[-1])  # , spe2age, midpoint)
-        t = root_tree(t, spe2age, midpoint)
+        t = root_tree(t, spe2age)
         if code in t.get_leaf_names():
             t = collapse_all_lineage_specific_expansions(t, code)
             if t:
@@ -161,13 +226,12 @@ def build_extra_concatenated_alg2(
                         counter[i][code] = set(t.get_leaf_names())
     statsFile = concatDir + "/stats.txt"
     outfile = open(statsFile, "w")
-    outfile.write("Number of species\tNumber of single gene trees\n")
+    outfile.write("Number of species\tNumber of single gene trees\tLength\n")
     limit = False
     keys = counter.keys()
     keys = sorted(keys)
     keys.reverse()
     for i in keys:
-        outfile.write(str(i) + "\t" + str(len(counter[i])) + "\n")
         if i >= min and not limit:
             workingDir = cAlgsDir + "/" + str(i)
             create_folder(workingDir)
@@ -179,87 +243,128 @@ def build_extra_concatenated_alg2(
             concatenate_alignments_from_path(
                 workingDir, concatFileName, spe2age, readalPath
             )
-            if len(counter[i]) > at_least:
+            phy_file = concatDir + "/concatenated_" + str(i) + ".phy"
+            with open(phy_file) as c:
+                first = c.readline()
+            length = first.strip().split()[1]
+            outfile.write(str(i) + "\t" + str(len(counter[i])) + "\t" + length + "\n")
+            if len(counter[i]) > at_least or int(length) > max_length:
                 limit = True
     outfile.close()
 
 
-# Script used to generate concatenated alignments.
+# Script used to generate concatenated alignments
 def build_concatenated_alg(
-    trees121File, spe2age, pathsFile, outDir, readalPath, prop=0.9, at_least=100
+    trees121File, spe2age, pathsFile, outDir, readalPath, prop=0.9, at_least=100, max_length = 50000
 ):
+    """Align those 121 gene families where there at least `prop` species are represented.
+
+    Parameters
+    ----------
+    trees121File : str
+        File of 121 trees created with ap.obtain_121_trees().
+    spe2age : dict
+        Species 2 age dictionary
+    pathsFile : str
+        Pathfile created with create_pathfile()
+    outDir : str
+        output directory
+    readalPath : str
+        path of readal exe
+    prop : num
+        a decimal from 0 to 1. This represent
+    at_least : num
+        Stop the concatenation when there are at least `at_least` gene families concatenated.
+    max_length : num
+        Stop the concatenation when the aln is `max_length` positions long.
+
+    Returns
+    -------
+    type
+        A outDir/concatenated dir where the alignments, the concatnated fasta and phy and some stats are stored.
+
+    """
+    if not 0 <= prop <=1:
+        sys.exit("Prop must be between 0 and 1")
+
     concatDir = outDir + "/concatenated/"
-    # if os.path.exists(concatDir):
-    #     print("Concatenation directory already exists")
-    #     fastaFiles = [x for x in glob.glob(concatDir + "/*fasta")]
-    #     if len(fastaFiles) == 1:
-    #         fastaFile = fastaFiles[0]
-    #     else:
-    #         fastaFiles = sorted(
-    #             fastaFiles,
-    #             key=lambda x: int(x.split("/")[-1].split("_")[1].split(".")[0]),
-    #         )
-    #         fastaFile = fastaFiles[0]
-    # else:
-    # Creat paths where data will be stored
-    cAlgsDir = concatDir + "/algs/"
-    create_folder(concatDir)
-    create_folder(cAlgsDir)
-    # codes = []
-    counter = {}
-    # Calculate how many species can be missing
-    # if not extra:
-    threshold = int(len(spe2age) - len(spe2age) * (1 - prop) + 1)
-    # else:
-    #     # If any extra concatenation method is called, just keep values over 5 is there are more than 5 species
-    #     if len(spe2age) < 5:
-    #         threshold = len(spe2age)
-    #     else:
-    #         threshold = 5
-    # Obtain the trees with 121 relationships with a number of leaves above the threshold, assign them to the leafNumber and lower leafNumbers
-    for line in open(trees121File):
-        line = line.strip()
-        dades = line.split()
-        num = int(dades[1])
-        if num >= threshold:
-            if num not in counter:
-                counter[num] = set([])
-            for i in range(threshold, num + 1):
-                if i not in counter:
-                    counter[i] = set([])
-                counter[i].add(dades[0])
-    # Open stats file
-    statsFile = concatDir + "/stats.txt"
-    outfile = open(statsFile, "w")
-    outfile.write("Number of species\tNumber of single gene trees\n")
-    limit = False
-    keys = counter.keys()
-    keys = sorted(keys)
-    keys.reverse()
-    # Load paths
-    pathsList = loadPaths(pathsFile, "alg_aa")
-    # For each of the trees for the maximum number of leaves
-    for i in keys:
-        outfile.write(str(i) + "\t" + str(len(counter[i])) + "\n")
-        if limit:
-            pass
+    if os.path.exists(concatDir):
+        print("Concatenation directory already exists")
+        fastaFiles = [x for x in glob.glob(concatDir + "/*fasta")]
+        if len(fastaFiles) == 1:
+            fastaFile = fastaFiles[0]
         else:
-            workingDir = cAlgsDir + "/" + str(i)
-            create_folder(workingDir)
-            # For each alignment copy the alignment in the working folder
-            for code in counter[i]:
-                if code in pathsList.keys():
-                    cmd = "cp " + pathsList[code] + " " + workingDir
-                    run_command(cmd, True)
-            concatFileName = concatDir + "/concatenated_" + str(i) + ".fasta"
-            concatenate_alignments_from_path(
-                workingDir, concatFileName, spe2age, readalPath
+            fastaFiles = sorted(
+                fastaFiles,
+                key=lambda x: int(x.split("/")[-1].split("_")[1].split(".")[0]),
             )
-            # fastaFile = concatDir + "/concatenated_" + str(i) + ".fasta"
-        # If enough alignments have been concatenated then the lower leaf numbers will not be processed
-        if len(counter[i]) > at_least:
-            limit = True
-    outfile.close()
+            fastaFile = fastaFiles[0]
+    else:
+        # Create paths where data will be stored
+        cAlgsDir = concatDir + "/algs/"
+        create_folder(concatDir)
+        create_folder(cAlgsDir)
+        # codes = []
+        counter = {}
+        # Calculate how many species can be missing
+        # if not extra:
+        threshold = int(len(spe2age) - len(spe2age) * (1 - prop) + 1)
+        # else:
+        #     # If any extra concatenation method is called, just keep values over 5 is there are more than 5 species
+        #     if len(spe2age) < 5:
+        #         threshold = len(spe2age)
+        #     else:
+        #         threshold = 5
+        # Obtain the trees with 121 relationships with a number of leaves above the threshold, assign them to the leafNumber and lower leafNumbers
+        for line in open(trees121File):
+            line = line.strip()
+            dades = line.split()
+            num = int(dades[1])
+            if num >= threshold:
+                if num not in counter:
+                    counter[num] = set([])
+                for i in range(threshold, num + 1):
+                    if i not in counter:
+                        counter[i] = set([])
+                    counter[i].add(dades[0])
+        # Open stats file
+        statsFile = concatDir + "/stats.txt"
+        outfile = open(statsFile, "w")
+        outfile.write("Number of species\tNumber of single gene trees\tLength\n")
+        limit = False
+        keys = counter.keys()
+        keys = sorted(keys)
+        keys.reverse()
+        # Load paths
+        pathsList = loadPaths(pathsFile, "alg_aa")
+        # For each of the trees for the maximum number of leaves
+        for i in keys:
+            # outfile.write(str(i) + "\t" + str(len(counter[i])) + "\n")
+            if limit:
+                pass
+            else:
+                workingDir = cAlgsDir + "/" + str(i)
+                create_folder(workingDir)
+                # For each alignment copy the alignment in the working folder
+                for code in counter[i]:
+                    if code in pathsList.keys():
+                        cmd = "cp " + pathsList[code] + " " + workingDir
+                        run_command(cmd, True)
+                concatFileName = concatDir + "/concatenated_" + str(i) + ".fasta"
+                concatenate_alignments_from_path(
+                    workingDir, concatFileName, spe2age, readalPath
+                )
+                fastaFile = concatDir + "/concatenated_" + str(i) + ".fasta"
+                phy_file = concatDir + "/concatenated_" + str(i) + ".phy"
+                with open(phy_file) as c:
+                    first = c.readline()
+                length = first.strip().split()[1]
+            # If enough alignments have been concatenated then the lower leaf numbers will not be processed
+                outfile.write(str(i) + "\t" + str(len(counter[i])) + "\t" + length + "\n")
+            if len(counter[i]) > at_least or int(length) > max_length:
+                limit = True
+        outfile.close()
+    # return fastaFile
 
 
 def get_orthologous_tree(t, code):
@@ -279,14 +384,42 @@ def get_orthologous_tree(t, code):
     return valid_subtree
 
 
+
 def build_extra_concatenated_alg3(
-    treeFile, spe2age, pathsFile, outDir, readalPath, min=5, at_least=500
+    treeFile, pathsFile, outDir, readalPath, spe2age, min=5, at_least=500, max_length=50000
 ):
+    """Concatenate alignments from orthologous subtrees.
+
+    Parameters
+    ----------
+    treeFile : str
+        best_trees file from phylomeDB
+    pathsFile : str
+        Pathfile created with create_pathfile()
+    outDir : str
+        output directory
+    readalPath : str
+        path of readal exe
+    spe2age : dict
+        Speceis 2 age dictionary
+    min : num
+        Consider only trees with at least min species
+    at_least : num
+        Stop the concatenation when there are at least `at_least` gene families concatenated.
+    max_length : num
+        Stop the concatenation when the aln is `max_length` positions long.
+
+    Returns
+    -------
+    type
+        A outDir/concatenated_extra3 dir where the alignments, the concatnated fasta and phy and some stats are stored.
+
+    """
     # Create output folders
     concatDir = outDir + "/concatenated_extra3/"
     create_folder(concatDir)
-    concatDir = concatDir + "/orthologous_trees/"
-    create_folder(concatDir)
+    # concatDir = concatDir + "/orthologous_trees/"
+    # create_folder(concatDir)
     cAlgsDir = concatDir + "/algs/"
     create_folder(cAlgsDir)
     # Collapse species specific duplications and obtain list of one-to-one trees
@@ -308,13 +441,12 @@ def build_extra_concatenated_alg3(
                     counter[i][code] = listLeaves
     statsFile = concatDir + "/stats.txt"
     outfile = open(statsFile, "w")
-    outfile.write("Number of species\tNumber of single gene trees\n")
+    outfile.write("Number of species\tNumber of single gene trees\tLength\n")
     limit = False
     keys = counter.keys()
     keys = sorted(keys)
     keys.reverse()
     for i in keys:
-        outfile.write(str(i) + "\t" + str(len(counter[i])) + "\n")
         if i >= min and not limit:
             workingDir = cAlgsDir + "/" + str(i)
             create_folder(workingDir)
@@ -326,6 +458,11 @@ def build_extra_concatenated_alg3(
             concatenate_alignments_from_path(
                 workingDir, concatFileName, spe2age, readalPath
             )
-            if len(counter[i]) > at_least:
+            phy_file = concatDir + "/concatenated_" + str(i) + ".phy"
+            with open(phy_file) as c:
+                first = c.readline()
+            length = first.strip().split()[1]
+            outfile.write(str(i) + "\t" + str(len(counter[i])) + "\t" + length + "\n")
+            if len(counter[i]) > at_least or int(length) > max_length:
                 limit = True
     outfile.close()

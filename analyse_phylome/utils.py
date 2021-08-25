@@ -37,14 +37,28 @@ def run_command_with_return(cmd):
 # Create a folder
 def create_folder(name):
     if not os.path.exists(name):
-        cmd = "mkdir " + name
         try:
-            run_command(cmd, False)
+            os.mkdir(name)
         except:
             print("Unable to create directory " + name)
 
 
 def loadPaths(pathsFile, tag):
+    """Loads paths from a pathfile based on the tag parameter.
+
+    Parameters
+    ----------
+    pathsFile : str
+        File created with create_pathfile().
+    tag : str
+        Tag of the files of interest
+
+    Returns
+    -------
+    type
+        Dictionary of gene:corresponding_file
+
+    """
     pathsList = {}
     for line in open(pathsFile):
         line = line.strip()
@@ -55,6 +69,21 @@ def loadPaths(pathsFile, tag):
 
 
 def build_sp2age(sptree, seed):
+    """Build a species to age dictionary given a tree and its main seq.
+
+    Parameters
+    ----------
+    sptree : tree
+        Phylogenetic tree of interest
+    seed : str
+        Main seq where the dictionary will start.
+
+    Returns
+    -------
+    type
+        Returns a dict with species:age_to_main as key:value
+
+    """
     spe2age = {}
     node = sptree.get_leaves_by_name(seed)[0]
     age = 1
@@ -71,6 +100,21 @@ def build_sp2age(sptree, seed):
 
 
 def load_sequences(contigFile, delimiter):
+    """Load sequences into a variable.
+
+    Parameters
+    ----------
+    contigFile : str
+        File where the seqs are stored.
+    delimiter : str
+        Delimiter of sequences.
+
+    Returns
+    -------
+    type
+        Variable with sequences stored.
+
+    """
     seqs = {}
     name = ""
     s = []
@@ -101,15 +145,6 @@ def load_species_name_whole(node):
 
 def load_tree(tree):
     t = ete3.PhyloTree(tree, sp_naming_function=load_species_name)
-    # if spe2age:
-    #     try:
-    #         t.set_outgroup(t.get_farthest_oldest_leaf(spe2age))
-    #     except:
-    #         sys.exit("Something went wrong with sp2age dict!")
-    # elif midpoint:
-    #     t.set_outgroup(t.get_midpoint_outgroup())
-    # else:
-    #     sys.exit("Something went wrong with rooting!")
     return t
 
 
@@ -136,11 +171,28 @@ def print_sequence(code, sequence, outfile):
         i += 60
 
 
-def create_pathfile(pathsFile, algs):
+def create_pathfile(pathsFile, dir, tag):
+    """Create a file with paths for a file in a specific dir.
+
+    Parameters
+    ----------
+    pathsFile : str
+        outputfile
+    dir : str
+        Directory containing the files of interest
+    tag : str
+        Tag for the type of file. For now only "alg_aa" is supported though.
+
+    Returns
+    -------
+    type
+        Returns a file with paths for each object of interest.
+
+    """
     outfilePath = open(pathsFile, "w")
-    for firstDir in glob.glob(algs + "/*"):
+    for firstDir in glob.glob(dir + "/*"):
         code = firstDir.split("/")[-1].split(".")[0]
-        outfilePath.write("alg_aa\t" + code + "\t" + firstDir + "\n")
+        outfilePath.write(tag+"\t" + code + "\t" + firstDir + "\n")
     outfilePath.close()
 
 
@@ -151,6 +203,25 @@ def create_pathfile(pathsFile, algs):
 
 
 def get_generax_data(gene_trees, out_dir, aln_dir=None, keep_model=True):
+    """Prepare data for generax or speciesrax.
+
+    Parameters
+    ----------
+    gene_trees : str
+        Best trees file from phylomeDB.
+    out_dir : str
+        output directory.
+    aln_dir : str
+        directory where the alns are stored. It can be ignored if the alns are not useful.
+    keep_model : bool
+        Keep the best model found in phylomeDB
+
+    Returns
+    -------
+    type
+        A directory with the structure and files needed for GeneRax to run.
+
+    """
 
     gene_file = os.path.basename(gene_trees)
     gene_noex = os.path.splitext(gene_file)[0]
@@ -248,14 +319,46 @@ def get_astral_pro_data(gene_trees, out_file):
                 o.write(string + "\n")
 
 
+def get_all_species(fileTree):
+    set_sp = set()
+    with open(fileTree) as t:
+        for line in t:
+            line = line.split()
+            tree = ete3.Tree(line[3])
+            for leaf in tree.iter_leaves():
+                leaf.name = leaf.name.split("_")[1]
+                set_sp.add(leaf.name)
+    return list(set_sp)
+
 def get_species_name(node_name_string):
     spcode = node_name_string.split("_")[1]
     return spcode
 
 
-def get_ecce_data(
-    gene_trees, species_tree, out_dir, root=False, ultrametric=False, midpoint=False
-):
+def get_ecce_data(gene_trees, species_tree, out_dir, root=False, midpoint=False, ultrametric=False):
+    """Build data useful for ecceTERA.
+
+    Parameters
+    ----------
+    gene_trees : str
+        Best trees file from PhylomeDB.
+    species_tree : str
+        Species tree
+    out_dir : str
+        output directory.
+    root : bool
+        Root the gene trees before comparing.
+    midpoint : bool
+        If root=True root by midpoint? If false the trees will be rooted with spe2age dictionary
+    ultrametric : bool
+        Convert the species tree to ultrametric (to run dated analysis)
+
+    Returns
+    -------
+    type
+    Data needed by ecceTERA in outdir ecce_best_trees file.
+
+    """
 
     gene_file = os.path.basename(gene_trees)
     # gene_noex = os.path.splitext(gene_file)[0]
@@ -321,6 +424,7 @@ def get_tax_dict(tree, uniprot_df):
         }
 
     absent = [abs for abs in sp if abs not in taxo_dict.keys()]
+
     if absent:
         print("Warning: " + " ".join(absent) + " was not found in the dictionary.")
         print("You may want to add it manually")
