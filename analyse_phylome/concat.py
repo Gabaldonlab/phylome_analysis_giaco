@@ -3,6 +3,7 @@ import ete3
 import os
 from .utils import (
     run_command,
+    run_command_with_return,
     load_sequences,
     load_species_name,
     load_tree,
@@ -105,6 +106,49 @@ def concatenate_alignments_from_path(path, outFileName, spe2age, readalPath):
     run_command(cmd, True)
 
 
+# eventuallly if i add the possibility to create partition file it should look like this
+# JTT, gene1 = 1­500
+# WAGF, gene2 = 501­800
+# WAG, gene3 = 801­1000
+
+
+def create_partition_mod(path, treeFile, outFileName):
+    """Concatenate alignment given the path of a directory where alns are stored.
+
+    Parameters
+    ----------
+    path : str
+        Dir of the alns.
+    outFileName : str
+        Output file name.
+    Returns
+    -------
+    type
+        Partition model file raxml-like.
+    """
+    dict_mod = {}
+    with open(treeFile) as tree:
+        for line in tree:
+            line = line.strip().split()
+            dict_mod[line[0]] = line[1]
+    num = 0
+    # out = "part_mod.txt"
+    with open(outFileName, "w") as part:
+        for fileName in glob.glob(path + "/*"):
+            # Ensuring the sequences are in fasta format
+            cmd = "awk '/^>/{if(N)exit;++N;} {print;}' " +  fileName + " | grep -v '>' | tr -d '\n' | wc -m"
+            len_single = int(run_command_with_return(cmd)[0].strip().decode())
+            gene = os.path.basename(fileName).split('.')[0]
+            start = num + 1
+            end = start + len_single - 1
+            mod = dict_mod[gene]
+            # JTT, gene1 = 1­500
+            # WAGF, gene2 = 501­800
+            # WAG, gene3 = 801­1000
+            part.write(mod + ", " + gene + " = " + str(start) + "-" + str(end) + "\n")
+            num = end
+
+
 def collapse_lineage_specific_expansions(t, seed):
     events = t.get_descendant_evol_events()
     taken = set([])
@@ -168,7 +212,8 @@ def build_extra_concatenated_alg2(
     min=5,
     # midpoint=False,
     at_least=100,
-    max_length=50000
+    max_length=50000,
+    partition=False
 ):
     """Concatenate alignments collapsing clade specific duplications.
 
@@ -243,6 +288,9 @@ def build_extra_concatenated_alg2(
             concatenate_alignments_from_path(
                 workingDir, concatFileName, spe2age, readalPath
             )
+            if partition:
+                outFileName = concatDir + "/part_mod.txt"
+                create_partition_mod(workingDir, treeFile, outFileName)
             phy_file = concatDir + "/concatenated_" + str(i) + ".phy"
             with open(phy_file) as c:
                 first = c.readline()
@@ -255,7 +303,7 @@ def build_extra_concatenated_alg2(
 
 # Script used to generate concatenated alignments
 def build_concatenated_alg(
-    trees121File, spe2age, pathsFile, outDir, readalPath, prop=0.9, at_least=100, max_length = 50000
+    trees121File, spe2age, pathsFile, outDir, readalPath, prop=0.9, at_least=100, max_length = 50000, partition=False, treeFile=None
 ):
     """Align those 121 gene families where there at least `prop` species are represented.
 
@@ -354,6 +402,9 @@ def build_concatenated_alg(
                 concatenate_alignments_from_path(
                     workingDir, concatFileName, spe2age, readalPath
                 )
+                if partition:
+                    outFileName = concatDir + "/part_mod.txt"
+                    create_partition_mod(workingDir, treeFile, outFileName)
                 fastaFile = concatDir + "/concatenated_" + str(i) + ".fasta"
                 phy_file = concatDir + "/concatenated_" + str(i) + ".phy"
                 with open(phy_file) as c:
@@ -386,7 +437,7 @@ def get_orthologous_tree(t, code):
 
 
 def build_extra_concatenated_alg3(
-    treeFile, pathsFile, outDir, readalPath, spe2age, min=5, at_least=500, max_length=50000
+    treeFile, pathsFile, outDir, readalPath, spe2age, min=5, at_least=500, max_length=50000, partition=False
 ):
     """Concatenate alignments from orthologous subtrees.
 
@@ -458,6 +509,9 @@ def build_extra_concatenated_alg3(
             concatenate_alignments_from_path(
                 workingDir, concatFileName, spe2age, readalPath
             )
+            if partition:
+                outFileName = concatDir + "/part_mod.txt"
+                create_partition_mod(workingDir, treeFile, outFileName)
             phy_file = concatDir + "/concatenated_" + str(i) + ".phy"
             with open(phy_file) as c:
                 first = c.readline()

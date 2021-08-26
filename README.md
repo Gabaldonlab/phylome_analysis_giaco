@@ -48,6 +48,9 @@ diff w/ Marina:
 * duptree decide if rooting gene trees (before it was midpoint rooting, now no rooting). At
 * wonder if dependencies will be installed if they are in requirements
 * how to normalize DTL values?
+* add comparsion even though already easy in ete?
+* add functions to run software or leave it to the user?
+
 
 #### TODOs:
 

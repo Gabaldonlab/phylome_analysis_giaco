@@ -4,7 +4,6 @@ import os
 import ete3
 import glob
 from ftplib import FTP
-from Bio import SeqIO, Seq
 
 # Run bash commands
 def run_command(cmd, ommit=False):
@@ -276,24 +275,36 @@ def get_generax_data(gene_trees, out_dir, aln_dir=None, keep_model=True):
                     f.write("subst_model = " + model + "\n")
                 if aln_dir is not None:
                     aln_file = aln_dir + "/" + id + ".clean.fasta"
-                    f.write("alignment = " + aln_file + "\n")
+                    aln_file_u = aln_dir + "/" + id + ".clean_noUs.fasta"
+                    if os.path.exists(aln_file_u):
+                        f.write("alignment = " + aln_file_u + "\n")
+                    elif os.path.exists(aln_file):
+                        f.write("alignment = " + aln_file + "\n")
+                    else:
+                        sys.exit("could not find file: " + aln_file)
                 f.write("mapping = " + out_mapfile + "\n")
 
 
-def scan_for_Us(aln_dir):#, replace=False):
+def scan_for_Us(aln_dir, replace=False, with_what="C"):#, replace=False):
     if os.path.exists(aln_dir):
+        is_u_ever = False
         for file in os.listdir(aln_dir):
             if file.endswith("clean.fasta"):
                 toread = os.path.join(aln_dir, file)
-                for record in SeqIO.parse(toread, 'fasta'):
-                    # if replace:
-                    if 'U' in record.seq:
-                    #         record.seq = str(record.seq).replace('U','X')
-                    #     else:
-                    #         pass
-                    #
-                        # else:
-                        print(file  + " contains Us, Raxml won't parse this alignment, replace them!")
+                is_U = False
+                cmd = "grep -v '>' " + toread + " | grep U"
+                files_u = run_command_with_return(cmd)
+                if len(files_u) > 0:
+                    is_U = True
+                    is_u_ever = True
+                    if replace:
+                        towrite = toread.replace("clean","clean_noUs")
+                        cmd = "sed '/^>/! {s/U/"+with_what+"/g}' " + toread + " > " + towrite
+                        run_command(cmd)
+                    if is_U:
+                        print(file + " Contains Us")
+        if not is_u_ever:
+            print("No files contain Us.")
 
 
 # # parser.add_argument("-s", "--species_tree", action="store", default="None", help="Species tree, must have internal names and unique names")

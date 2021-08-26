@@ -36,10 +36,10 @@ spe2age = ap.build_sp2age(sptree, "341454")
 # spe2age = ap.get_all_species(treeFile)
 
 help(ap.build_concatenated_alg)
-ap.build_concatenated_alg(trees121File, spe2age, pathsFile, outDir, readalPath, prop = 0.99, max_length=10000)
+ap.build_concatenated_alg(trees121File, spe2age, pathsFile, outDir, readalPath, prop = 0.99, max_length=10000, partition=True, treeFile=treeFile)
 
 help(ap.build_extra_concatenated_alg2)
-ap.build_extra_concatenated_alg2(treeFile, pathsFile, outDir, readalPath, spe2age, min=17, max_length=150000)
+ap.build_extra_concatenated_alg2(treeFile, pathsFile, outDir, readalPath, spe2age, min=17, max_length=10000, partition=True)
 
 help(ap.build_extra_concatenated_alg3)
-ap.build_extra_concatenated_alg3(treeFile, pathsFile, outDir, readalPath, spe2age, min=15 , at_least=200, max_length=10000)
+ap.build_extra_concatenated_alg3(treeFile, pathsFile, outDir, readalPath, spe2age, min=15 , at_least=200, max_length=10000, partition=True)
