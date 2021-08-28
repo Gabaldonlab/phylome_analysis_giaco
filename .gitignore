@@ -6,7 +6,7 @@ dist/
 
 # Python egg metadata, regenerated from source files by setuptools.
 /*.egg-info
-
+examples/plots
 old_stuff/
 test_data/
 out_dir*/
@@ -16,3 +16,4 @@ test.py
 t
 .ipynb_checkpoints
 examples/*py
+scripts/

@@ -70,10 +70,10 @@ def get_ecce_df(treeFile, ecce_out):#, out_dir):
     return df
 
 
-def ternary_ecce_plot(df_ecce):
+def ternary_ecce_plot(df_ecce, renderer='notebook_connected'):
     fig = px.scatter_ternary(df_ecce, a="D_norm", b="T_norm", c="L_norm", color="Leaf", hover_name="Index", template="simple_white")#, title="Ternary plots of each gene family ecceTera DTL normalized rates colored by number of leaf in the family")
-    fig.show()
+    fig.show(renderer=renderer)
 
-def ternary_grax_plot(df_grax, axes=["D_norm","T_norm","SL_norm"]):
+def ternary_grax_plot(df_grax, axes=["D_norm","T_norm","SL_norm"], renderer='notebook_connected'):
     fig = px.scatter_ternary(df_grax, a=axes[0], b=axes[1], c=axes[2], color="Leaf", hover_name="Index", template="simple_white")#, title="Ternary plots of each gene family ecceTera DTL normalized rates colored by number of leaf in the family")
-    fig.show()
+    fig.show(renderer=renderer)
