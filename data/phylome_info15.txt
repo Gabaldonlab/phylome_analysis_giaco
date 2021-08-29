@@ -1,0 +1,29 @@
+Phylome Id:             	15
+Phylome Name:           	A. nigricans phylome
+Seed Species:           	Ascodesmis nigricans
+Seed Taxa Id:           	341454
+Seed Proteome:          	341454.1
+Creation date:          	2020-02-27
+Comments:               	Phylome reconstructed for the Ascodesmis nigricans genome project
+TaxaID 	Proteome	Date      	Longest 	Source          	Species Name
+-----
+4932   	YEAST.7 	2011-08-08	5814    	Quest For Orthologs:RELEASE 2011_04	Saccharomyces cerevisiae
+4952   	YARLI.4 	2012-04-17	6425    	Genolevures     	Yarrowia lipolytica
+5141   	NEUCR.5 	2011-07-01	9826    	UniProt reference genomes	Neurospora crassa
+5180   	SCLSC.2 	2011-12-23	14457   	Broad institute 	Sclerotinia sclerotiorum
+5341   	AGABI.1 	2012-12-11	10386   	JGI             	Agaricus bisporus
+5501   	COCIM.4 	2011-07-01	9750    	Broad institute 	Coccidioides immitis
+5518   	GIBZE.4 	2011-03-11	13318   	BroadInstitute  	Gibberella zeae
+29883  	LACBI.2 	2011-10-26	22699   	JGI             	Laccaria bicolor
+34373  	BLUGR.1 	2012-12-11	6461    	www.blugen.org  	Blumeria graminis
+162425 	EMENI.3 	2011-07-01	9417    	UniProt reference genomes	Emericella nidulans
+284812 	SCHPO.6 	2012-07-20	5072    	Quest for Orthologs - 2012_05	Schizosaccharomyces pombe (strain 972/ATCC 24843)
+321614 	PHANO.2 	2011-12-23	12374   	Broad institute 	Phaeosphaeria nodorum SN15
+331117 	NEOFI.2 	2012-12-11	10392   	UniProt         	Neosartorya fischeri (strain ATCC 1020 / DSM 3700 / FGSC A1164 / NRRL 181)
+341454 	341454.1	2015-10-29	9620    	Sequencing project	Ascodesmis nigricans
+656061 	TUBMM.4 	2016-02-08	10044   	Sequencing project	Tuber melanosporum Mel28
+756982 	ARTOA.1 	2012-12-11	11478   	UniProt         	Arthrobotrys oligospora ATCC 24927
+771870 	SORMK.2 	2015-10-29	7465    	Sequencing project	Sordaria macrospora k-hell
+1047171	MYCGR.1 	2008-12-18	10938   	Jgi             	Mycosphaerella graminicola
+1076935	PYROM.1 	2015-10-29	13346   	Sequencing project	Pyronema omphalodes CBS 100304
+1097556	TAPDE.1 	2013-11-13	4647    	UniProt         	Taphrina deformans PYCC 5710

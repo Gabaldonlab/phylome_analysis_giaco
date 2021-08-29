@@ -148,7 +148,7 @@ def load_tree(tree):
 
 
 def root_tree(t, spe2age=None, midpoint=False):
-    if spe2age:
+    if spe2age is not None:
         try:
             t.set_outgroup(t.get_farthest_oldest_leaf(spe2age))
         except:
@@ -158,6 +158,34 @@ def root_tree(t, spe2age=None, midpoint=False):
     else:
         sys.exit("Something went wrong with rooting!")
     return t
+
+
+def root_species_tree(t, spe2age=None, midpoint=False, out_list=None):
+    p = ete3.PhyloTree(t.write(), sp_naming_function=None)
+    for n in p.get_leaves():
+        n.species = n.name
+    if spe2age is not None:
+        furthest = [k for k, v in spe2age.items() if v == max(spe2age.values())]
+        if len(furthest) > 1:
+            print("there are more than one furthest sequence, the root will be the ancestor node that comprise all of them.")
+            print(furthest)
+            if p.get_common_ancestor(furthest) == p.get_tree_root():
+                print("Could not find a monophyletic clade containing all furthest species, try midppoint rooting or give a list of outgroup")
+            # p.set_outgroup(p.get_midpoint_outgroup())
+            else:
+                p.set_outgroup(p.get_common_ancestor(furthest))
+        else:
+            print("only one furthest sequence, this will be the outgroup")
+            print(furthest)
+            p.set_outgroup(p.get_farthest_oldest_leaf(spe2age))
+    if midpoint:
+        p.set_outgroup(p.get_midpoint_outgroup())
+    if out_list is not None:
+        if len(out_list)==1:
+            p.set_outgroup(out_list[0])
+        else:
+            p.set_outgroup(p.get_common_ancestor(out_list))
+    return p
 
 
 def print_sequence(code, sequence, outfile):
@@ -341,6 +369,7 @@ def get_all_species(fileTree):
                 set_sp.add(leaf.name)
     return list(set_sp)
 
+
 def get_species_name(node_name_string):
     spcode = node_name_string.split("_")[1]
     return spcode
@@ -422,7 +451,7 @@ def get_ecce_data(gene_trees, species_tree, out_dir, root=False, midpoint=False,
                 o.write(string + "\n")
 
 
-def get_tax_dict(tree, uniprot_df): # add solve species??
+def get_tax_dict_uniprot(tree, uniprot_df): # add solve species??
     ncbi = ete3.NCBITaxa()
     sp = [nm for nm in tree.get_leaf_names()]
     sp = list(set([s.split("_")[-1] if "_" in s else s for s in sp]))
@@ -447,6 +476,20 @@ def get_tax_dict(tree, uniprot_df): # add solve species??
         print("You may want to add it manually")
 
     return taxo_dict
+
+
+def get_tax_dict_info(info_txt):
+    with open(info_txt) as i:
+        flag = False
+        lines = []
+        for line in i:
+            if "TaxaID" in line:
+                flag = True
+            if flag:
+                lines.append(line)
+
+    tax_dict = {el.split()[1].split('.')[0]:el.split()[0] for el in lines[2:]}
+    return tax_dict
 
 
 def get_taxonomic_df(tax_dict, sptree):
@@ -514,6 +557,7 @@ def get_taxonomic_df(tax_dict, sptree):
 
     return sptree
     # return whole_tax_dict
+
 
 def layout_species(node):
     width = 100 # try to find a mulitplicator or something
@@ -601,7 +645,6 @@ def viz_grax_tree(genetree, show=True, render=None):
         genetree.render(render, tree_style = ts)
 
 
-
 def rename_tree_tax(tree, taxo_dict):
 
     for leaf in tree.iter_leaves():
@@ -614,7 +657,6 @@ def rename_tree_tax(tree, taxo_dict):
 
 
 def analyze_rooting(spe2age):
-
     # fracs = {}
     num = len([k for k, v in spe2age.items() if v == max(spe2age.values())])
     den = len(spe2age)
@@ -627,7 +669,6 @@ def analyze_rooting(spe2age):
 
 
 def get_ftp_stats(phylome_ids=None, all=False):
-
     ftp = FTP("ftp.phylomedb.org")
     ftp.login()
     ftp.cwd("phylomedb")
