@@ -4,7 +4,7 @@ Analyse_phylome
 This python package will allow to:
 
 * concatenate the alignments
-* build species tree
+* build and visualize species tree
 * Prepare data for discordance softwares (GeneRax and ecceTERA) and analyze the results
 
 Starting from a phylome stored in PhylomeDB:
@@ -57,12 +57,12 @@ diff w/ Marina:
 
 #### TODOs:
 
-* Documentation + errors mgmt + eventually autmatic testing
-* Add create partition model file as option for concat
+* Documentation + errors mgmt + eventually automatic testing
 * add download phylome script.
-* change name plz
-* visualize cat MSAs
+* add installation instructions
 * misc example
+* add this workflow https://docs.github.com/en/actions/guides/building-and-testing-python
+* add consensus tree
 * viz species tree can be imporved with dynami rectangles width
 
 global variables for outdir, readal, duptree etc how do they work??

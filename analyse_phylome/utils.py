@@ -167,10 +167,14 @@ def root_species_tree(t, spe2age=None, midpoint=False, out_list=None):
     if spe2age is not None:
         furthest = [k for k, v in spe2age.items() if v == max(spe2age.values())]
         if len(furthest) > 1:
-            print("there are more than one furthest sequence, the root will be the ancestor node that comprise all of them.")
+            print(
+                "there are more than one furthest sequence, the root will be the ancestor node that comprise all of them."
+            )
             print(furthest)
             if p.get_common_ancestor(furthest) == p.get_tree_root():
-                print("Could not find a monophyletic clade containing all furthest species, try midppoint rooting or give a list of outgroup")
+                print(
+                    "Could not find a monophyletic clade containing all furthest species, try midppoint rooting or give a list of outgroup"
+                )
             # p.set_outgroup(p.get_midpoint_outgroup())
             else:
                 p.set_outgroup(p.get_common_ancestor(furthest))
@@ -181,7 +185,7 @@ def root_species_tree(t, spe2age=None, midpoint=False, out_list=None):
     if midpoint:
         p.set_outgroup(p.get_midpoint_outgroup())
     if out_list is not None:
-        if len(out_list)==1:
+        if len(out_list) == 1:
             p.set_outgroup(out_list[0])
         else:
             p.set_outgroup(p.get_common_ancestor(out_list))
@@ -219,7 +223,7 @@ def create_pathfile(pathsFile, dir, tag):
     outfilePath = open(pathsFile, "w")
     for firstDir in glob.glob(dir + "/*"):
         code = firstDir.split("/")[-1].split(".")[0]
-        outfilePath.write(tag+"\t" + code + "\t" + firstDir + "\n")
+        outfilePath.write(tag + "\t" + code + "\t" + firstDir + "\n")
     outfilePath.close()
 
 
@@ -313,7 +317,7 @@ def get_generax_data(gene_trees, out_dir, aln_dir=None, keep_model=True):
                 f.write("mapping = " + out_mapfile + "\n")
 
 
-def scan_for_Us(aln_dir, replace=False, with_what="C"):#, replace=False):
+def scan_for_Us(aln_dir, replace=False, with_what="C"):  # , replace=False):
     if os.path.exists(aln_dir):
         is_u_ever = False
         for file in os.listdir(aln_dir):
@@ -326,8 +330,15 @@ def scan_for_Us(aln_dir, replace=False, with_what="C"):#, replace=False):
                     is_U = True
                     is_u_ever = True
                     if replace:
-                        towrite = toread.replace("clean","clean_noUs")
-                        cmd = "sed '/^>/! {s/U/"+with_what+"/g}' " + toread + " > " + towrite
+                        towrite = toread.replace("clean", "clean_noUs")
+                        cmd = (
+                            "sed '/^>/! {s/U/"
+                            + with_what
+                            + "/g}' "
+                            + toread
+                            + " > "
+                            + towrite
+                        )
                         run_command(cmd)
                     if is_U:
                         print(file + " Contains Us")
@@ -375,7 +386,9 @@ def get_species_name(node_name_string):
     return spcode
 
 
-def get_ecce_data(gene_trees, species_tree, out_dir, root=False, midpoint=False, ultrametric=False):
+def get_ecce_data(
+    gene_trees, species_tree, out_dir, root=False, midpoint=False, ultrametric=False
+):
     """Build data useful for ecceTERA.
 
     Parameters
@@ -451,7 +464,7 @@ def get_ecce_data(gene_trees, species_tree, out_dir, root=False, midpoint=False,
                 o.write(string + "\n")
 
 
-def get_tax_dict_uniprot(tree, uniprot_df): # add solve species??
+def get_tax_dict_uniprot(tree, uniprot_df):  # add solve species??
     ncbi = ete3.NCBITaxa()
     sp = [nm for nm in tree.get_leaf_names()]
     sp = list(set([s.split("_")[-1] if "_" in s else s for s in sp]))
@@ -488,17 +501,21 @@ def get_tax_dict_info(info_txt):
             if flag:
                 lines.append(line)
 
-    tax_dict = {el.split()[1].split('.')[0]:el.split()[0] for el in lines[2:]}
+    tax_dict = {el.split()[1].split(".")[0]: el.split()[0] for el in lines[2:]}
     return tax_dict
 
 
 def get_taxonomic_df(tax_dict, sptree):
     ncbi = ete3.NCBITaxa()
     tax_resolved = ncbi.get_taxid_translator([sp for sp in tax_dict.values()])
+    tax_dict = {k: v for k, v in tax_dict.items() if int(v) in tax_resolved.keys()}
     mnemo_sp = {}
     for mnemo in tax_dict:
         id = int(tax_dict[mnemo])
-        species = tax_resolved[id]
+        try:
+            species = tax_resolved[id]
+        except KeyError:
+            species = mnemo
         mnemo_sp[mnemo] = species
     for node in sptree.iter_leaves():
         if node.name in mnemo_sp.keys():
@@ -506,11 +523,12 @@ def get_taxonomic_df(tax_dict, sptree):
         else:
             node.species = node.name
 
+    # tax_resolved_ids = [str(k) for k in tax_resolved]
     whole_tax_dict = {}
 
     for key, value in tax_resolved.items():
         sp_name = "".join(ncbi.get_taxid_translator([key]).values())
-        lineage = (ncbi.get_lineage(key))
+        lineage = ncbi.get_lineage(key)
         names = ncbi.get_taxid_translator(lineage)
         rank = ncbi.get_rank(lineage)
         ordered_names = [names[taxid] for taxid in lineage]
@@ -529,7 +547,7 @@ def get_taxonomic_df(tax_dict, sptree):
             #         set_single.add(clade)
             seen.append(set_single)
 
-    common_clades = list(set.intersection(*seen) - set(['no rank','clade','species']))
+    common_clades = list(set.intersection(*seen) - set(["no rank", "clade", "species"]))
     num_clades = len(common_clades)
     all_phyla = set()
 
@@ -541,7 +559,7 @@ def get_taxonomic_df(tax_dict, sptree):
 
     color_dict = {}
     colors = ete3.random_color(num=len(set(all_phyla)))
-    color_dict = {el[1]:el[0] for el in list(zip(colors, list(all_phyla)))}
+    color_dict = {el[1]: el[0] for el in list(zip(colors, list(all_phyla)))}
 
     for key in whole_tax_dict:
         new_tuple = [el + (color_dict[el[0]],) for el in whole_tax_dict[key]]
@@ -552,7 +570,7 @@ def get_taxonomic_df(tax_dict, sptree):
         if node.name in tax_dict.keys():
             sp_df = whole_tax_dict[node.species]
         else:
-            sp_df = [('','','')]*num_clades
+            sp_df = [("", "", "")] * num_clades
         node.add_feature("col_df", sp_df)
 
     return sptree
@@ -560,18 +578,31 @@ def get_taxonomic_df(tax_dict, sptree):
 
 
 def layout_species(node):
-    width = 100 # try to find a mulitplicator or something
-        # If node is a leaf, add the nodes name and a its scientific
-        # name
+    width = 100  # try to find a mulitplicator or something
+    # If node is a leaf, add the nodes name and a its scientific
+    # name
     node.img_style["size"] = 0
     if node.is_leaf():
         name_face = ete3.faces.AttrFace("species")
         ete3.faces.add_face_to_node(name_face, node, column=0, position="branch-right")
         col_idx = 1
         for clade in node.col_df:
-            rect = ete3.faces.RectFace(width, 20, bgcolor=clade[2], fgcolor=clade[2], label={"text":clade[0], "color":"white", "fontsize":6})
+            rect = ete3.faces.RectFace(
+                width,
+                20,
+                bgcolor=clade[2],
+                fgcolor=clade[2],
+                label={"text": clade[0], "color": "white", "fontsize": 6},
+            )
             ete3.faces.add_face_to_node(rect, node, column=col_idx, aligned=True)
             col_idx += 1
+
+
+def layout_species_circular(node):
+    node.img_style["size"] = 0
+    if node.is_leaf():
+        name_face = ete3.faces.AttrFace("species")
+        ete3.faces.add_face_to_node(name_face, node, column=0, position="branch-right")
 
 
 def viz_species_tree(sptree, show=True, render=None):
@@ -580,11 +611,22 @@ def viz_species_tree(sptree, show=True, render=None):
     ts.allow_face_overlap = True
     ts.draw_aligned_faces_as_table = True
     ts.layout_fn = layout_species
-    #sptree.render("prova.png",tree_style = ts)
+    # sptree.render("prova.png",tree_style = ts)
     if show:
-        sptree.show(tree_style = ts)
+        sptree.show(tree_style=ts)
     if render is not None:
-        sptree.render(render, tree_style = ts)
+        sptree.render(render, tree_style=ts)
+
+
+def viz_species_tree_circular(sptree, show=True, render=None):
+    ts = ete3.TreeStyle()
+    ts.show_leaf_name = False
+    ts.layout_fn = layout_species_circular
+    ts.mode = "c"
+    if show:
+        sptree.show(tree_style=ts)
+    if render is not None:
+        sptree.render(render, tree_style=ts)
 
 
 def annotate_genetree(genetree, taxo_dict):
@@ -601,7 +643,7 @@ def annotate_genetree(genetree, taxo_dict):
         mnemo_sp[mnemo] = col
 
     for node in genetree.iter_leaves():
-        node.mnemo = node.name.split('_')[1]
+        node.mnemo = node.name.split("_")[1]
         # node.species = mnemo_sp[node.mnemo][0]
         if node.mnemo in taxo_dict.keys():
             node.col = mnemo_sp[node.mnemo]
@@ -611,8 +653,8 @@ def annotate_genetree(genetree, taxo_dict):
 
 
 def layout_grax_nhx(node):
-        # If node is a leaf, add the nodes name and a its scientific
-        # name
+    # If node is a leaf, add the nodes name and a its scientific
+    # name
     if node.is_leaf():
         nameFace = ete3.faces.TextFace(node.name, fgcolor=node.col)
         ete3.faces.add_face_to_node(nameFace, node, column=0)
@@ -620,15 +662,15 @@ def layout_grax_nhx(node):
         node.img_style["shape"] = "circle"
         node.img_style["fgcolor"] = node.col
     if node.D != "N":
-            node.img_style["size"] = 15
-            node.img_style["shape"] = "circle"
-            node.img_style["fgcolor"] = "darkred"
+        node.img_style["size"] = 15
+        node.img_style["shape"] = "circle"
+        node.img_style["fgcolor"] = "darkred"
     elif node.H != "N":
-            node.img_style["size"] = 15
-            node.img_style["shape"] = "circle"
-            node.img_style["fgcolor"] = "darkgreen"
-            HGTFace = ete3.faces.TextFace('-'.join(node.H.split('@')[1:]), fsize=5)
-            ete3.faces.add_face_to_node(HGTFace, node, column=0, position="branch-bottom")
+        node.img_style["size"] = 15
+        node.img_style["shape"] = "circle"
+        node.img_style["fgcolor"] = "darkgreen"
+        HGTFace = ete3.faces.TextFace("-".join(node.H.split("@")[1:]), fsize=5)
+        ete3.faces.add_face_to_node(HGTFace, node, column=0, position="branch-bottom")
     else:
         node.img_style["size"] = 0
 
@@ -640,9 +682,9 @@ def viz_grax_tree(genetree, show=True, render=None):
     ts.show_branch_support = True
     ts.layout_fn = layout_grax_nhx
     if show:
-        genetree.show(tree_style = ts)
+        genetree.show(tree_style=ts)
     if render is not None:
-        genetree.render(render, tree_style = ts)
+        genetree.render(render, tree_style=ts)
 
 
 def rename_tree_tax(tree, taxo_dict):
