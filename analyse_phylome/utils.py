@@ -3,6 +3,7 @@ import sys
 import os
 import ete3
 import glob
+import pandas as pd
 from ftplib import FTP
 
 # Run bash commands
@@ -148,6 +149,23 @@ def load_tree(tree):
 
 
 def root_tree(t, spe2age=None, midpoint=False):
+    """Root a Phylogenetic tree.
+
+    Parameters
+    ----------
+    t : Tree
+        Tree to root.
+    spe2age : dict
+        Species2age dictionary if available.
+    midpoint : bool
+        Use midpoint rooting.
+
+    Returns
+    -------
+    tree
+        Rooted phylogenetic tree.
+
+    """
     if spe2age is not None:
         try:
             t.set_outgroup(t.get_farthest_oldest_leaf(spe2age))
@@ -161,6 +179,25 @@ def root_tree(t, spe2age=None, midpoint=False):
 
 
 def root_species_tree(t, spe2age=None, midpoint=False, out_list=None):
+    """Root a species tree.
+
+    Parameters
+    ----------
+    t : tree
+        Species tree to root.
+    spe2age : dict
+        Species 2 age dictionary if available.
+    midpoint : bool
+        Do midpoint rooting.
+    out_list : list
+        Lisst of outgroup species.
+
+    Returns
+    -------
+    tree
+        Rooted species tree.
+
+    """
     p = ete3.PhyloTree(t.write(), sp_naming_function=None)
     for n in p.get_leaves():
         n.species = n.name
@@ -307,7 +344,7 @@ def get_generax_data(gene_trees, out_dir, aln_dir=None, keep_model=True):
                     f.write("subst_model = " + model + "\n")
                 if aln_dir is not None:
                     aln_file = aln_dir + "/" + id + ".clean.fasta"
-                    aln_file_u = aln_dir + "/" + id + ".clean_noUs.fasta"
+                    aln_file_u = aln_dir + "/" + id + ".clean_noU.fasta"
                     if os.path.exists(aln_file_u):
                         f.write("alignment = " + aln_file_u + "\n")
                     elif os.path.exists(aln_file):
@@ -317,22 +354,43 @@ def get_generax_data(gene_trees, out_dir, aln_dir=None, keep_model=True):
                 f.write("mapping = " + out_mapfile + "\n")
 
 
-def scan_for_Us(aln_dir, replace=False, with_what="C"):  # , replace=False):
+def scan_for_Us(aln_dir, what="U", replace=False, with_what="C"):
+    """Scan for U (Selenocysteine) characters in alignment. useful
+    if using generax as alignments containing Us won't be parsed.
+
+    Parameters
+    ----------
+    aln_dir : str
+        Directory where .
+    what : str
+        Character to find (U is default).
+    replace : bool
+        If true create a file with no Us named with _noU added.
+
+    Returns
+    -------
+    type
+        Returns if the alignments contain non canonical aminoacid and eventually a file with those aminoacid replaced.
+
+    """
     if os.path.exists(aln_dir):
         is_u_ever = False
         for file in os.listdir(aln_dir):
             if file.endswith("clean.fasta"):
                 toread = os.path.join(aln_dir, file)
                 is_U = False
-                cmd = "grep -v '>' " + toread + " | grep U"
+                cmd = "grep -v '>' " + toread + " | grep " + what
                 files_u = run_command_with_return(cmd)
                 if len(files_u) > 0:
                     is_U = True
                     is_u_ever = True
                     if replace:
-                        towrite = toread.replace("clean", "clean_noUs")
+                        outname = "clean_no" + what
+                        towrite = toread.replace("clean", outname)
                         cmd = (
-                            "sed '/^>/! {s/U/"
+                            "sed '/^>/! {s/"
+                            + what
+                            + "/"
                             + with_what
                             + "/g}' "
                             + toread
@@ -341,22 +399,27 @@ def scan_for_Us(aln_dir, replace=False, with_what="C"):  # , replace=False):
                         )
                         run_command(cmd)
                     if is_U:
-                        print(file + " Contains Us")
+                        print(file + " Contains " + what)
         if not is_u_ever:
-            print("No files contain Us.")
-
-
-# # parser.add_argument("-s", "--species_tree", action="store", default="None", help="Species tree, must have internal names and unique names")
-# parser.add_argument("-g", "--gene_trees", required=True, action="store", help="Best trees file from phylomeDB")
-# # change g param to a directory if you'll use empress
-# parser.add_argument("-o", "--outdir", action="store", help="Dir where the resulting files will be stored", default="./generax_data")
-# parser.add_argument("-a", "--alignment", action="store", help="alignemnt dir where the alignments are stored")
-# parser.add_argument("-km", "--keepmodel", action="store_true", help="Use the same model as in best_trees")
-# parser.add_argument("-m", "--mapping", action="store", help="Name of mapping file prefix", default="mapping")
-# parser.add_argument("-f", "--family", action="store", help="name of family file", default="family.txt")
+            print("No files contain " + what)
 
 
 def get_astral_pro_data(gene_trees, out_file):
+    """Obtain data to run astral-pro.
+
+    Parameters
+    ----------
+    gene_trees : str
+        Best trees file from PhylomeDB.
+    out_file : str
+        outputfile.
+
+    Returns
+    -------
+    file
+        Write outputfile in specified directory.
+
+    """
 
     with open(out_file, "w") as o:
         with open(gene_trees) as t:
@@ -370,6 +433,19 @@ def get_astral_pro_data(gene_trees, out_file):
 
 
 def get_all_species(fileTree):
+    """Get all mmnemonics code in best trees file in phylomedb.
+
+    Parameters
+    ----------
+    fileTree : str
+        best tree file from PhylomeDB
+
+    Returns
+    -------
+    list
+        List of mnemonics codes found in file.
+
+    """
     set_sp = set()
     with open(fileTree) as t:
         for line in t:
@@ -465,6 +541,20 @@ def get_ecce_data(
 
 
 def get_tax_dict_uniprot(tree, uniprot_df):  # add solve species??
+    """Get taxonomic code from mnemonic starting from uniprot speclist file.
+
+    Parameters
+    ----------
+    tree : tree
+        Tree with mnemo code as leaf names.
+    uniprot_df : str
+        file of uniprot speclist. It can be retireved with: "curl https://www.uniprot.org/docs/speclist.txt -o data/speclist_$(date +'%d_%m_%y').txt"
+    Returns
+    -------
+    dict
+        Dictionary with mnemos as key and ncbi taxid as values.
+
+    """
     ncbi = ete3.NCBITaxa()
     sp = [nm for nm in tree.get_leaf_names()]
     sp = list(set([s.split("_")[-1] if "_" in s else s for s in sp]))
@@ -492,6 +582,18 @@ def get_tax_dict_uniprot(tree, uniprot_df):  # add solve species??
 
 
 def get_tax_dict_info(info_txt):
+    """Get taxonomic code from phylomedb info file.
+
+    Parameters
+    ----------
+    info_txt : str
+        info.txt file from phylomeDB ftp server.
+    Returns
+    -------
+    dict
+        Dictionary with mnemos as key and ncbi taxid as values.
+
+    """
     with open(info_txt) as i:
         flag = False
         lines = []
@@ -505,7 +607,7 @@ def get_tax_dict_info(info_txt):
     return tax_dict
 
 
-def get_taxonomic_df(tax_dict, sptree):
+def get_taxonomic_df(tax_dict, set_cols=False, fill=False):
     ncbi = ete3.NCBITaxa()
     tax_resolved = ncbi.get_taxid_translator([sp for sp in tax_dict.values()])
     tax_dict = {k: v for k, v in tax_dict.items() if int(v) in tax_resolved.keys()}
@@ -517,17 +619,11 @@ def get_taxonomic_df(tax_dict, sptree):
         except KeyError:
             species = mnemo
         mnemo_sp[mnemo] = species
-    for node in sptree.iter_leaves():
-        if node.name in mnemo_sp.keys():
-            node.species = mnemo_sp[node.name]
-        else:
-            node.species = node.name
 
-    # tax_resolved_ids = [str(k) for k in tax_resolved]
     whole_tax_dict = {}
 
     for key, value in tax_resolved.items():
-        sp_name = "".join(ncbi.get_taxid_translator([key]).values())
+        # sp_name = "".join(ncbi.get_taxid_translator([key]).values())
         lineage = ncbi.get_lineage(key)
         names = ncbi.get_taxid_translator(lineage)
         rank = ncbi.get_rank(lineage)
@@ -537,47 +633,153 @@ def get_taxonomic_df(tax_dict, sptree):
         # d = {k:{rank[k]:lineage[k]} for k in lineage.keys()}
         whole_tax_dict[value] = taxonomy
 
-    seen = []
+    if set_cols:
+        common_clades = [
+            "species",
+            "genus",
+            "family",
+            "order",
+            "class",
+            "phylum",
+            "kingdom",
+            "superkingdom",
+        ]
+    else:
+        seen = []
 
-    for sp in whole_tax_dict:
-        set_single = set()
-        for id in whole_tax_dict[sp]:
-            set_single.add(id[1])
-            #     for clade in whole_tax_dict[sp][id]:
-            #         set_single.add(clade)
-            seen.append(set_single)
+        for sp in whole_tax_dict:
+            set_single = set()
+            for id in whole_tax_dict[sp]:
+                set_single.add(id[1])
+                #     for clade in whole_tax_dict[sp][id]:
+                #         set_single.add(clade)
+                seen.append(set_single)
 
-    common_clades = list(set.intersection(*seen) - set(["no rank", "clade", "species"]))
-    num_clades = len(common_clades)
-    all_phyla = set()
+        common_clades = list(set.intersection(*seen) - set(["no rank", "clade"]))
 
     for key in whole_tax_dict:
-        new_tuple = [el for el in whole_tax_dict[key] if el[1] in common_clades][::-1]
+        if not set_cols:
+            new_tuple = [el for el in whole_tax_dict[key] if el[1] in common_clades]
+        else:
+            clades_present = [
+                el[1] for el in whole_tax_dict[key] if el[1] in common_clades
+            ]
+            memory = ()
+            new_tuple = []
+            for clade in common_clades[::-1]:
+                if clade in clades_present:
+                    toadd = [el for el in whole_tax_dict[key] if el[1] == clade][0]
+                    memory = toadd
+                elif fill and len(memory) > 0:
+                    toadd = (memory[0], clade)
+                else:
+                    toadd = ("", clade)
+                new_tuple.append(toadd)
         whole_tax_dict[key] = new_tuple
-        for el in new_tuple:
+    return whole_tax_dict
+
+
+def get_dataframe(whole_tax_dict):
+    data = []
+    for key in whole_tax_dict:
+        row = [el[0] for el in whole_tax_dict[key]]
+        col_names = [el[1] for el in whole_tax_dict[key]][::-1]
+        data.append(row[::-1])
+
+    df = pd.DataFrame(data, columns=col_names)
+    return df
+
+
+def annotate_taxonomy(sptree, whole_tax_dict, tax_dict):
+    out_sptree = sptree.copy("cpickle")
+    ncbi = ete3.NCBITaxa()
+    tax_resolved = ncbi.get_taxid_translator([sp for sp in tax_dict.values()])
+    tax_dict = {k: v for k, v in tax_dict.items() if int(v) in tax_resolved.keys()}
+    mnemo_sp = {}
+    for mnemo in tax_dict:
+        id = int(tax_dict[mnemo])
+        try:
+            species = tax_resolved[id]
+        except KeyError:
+            species = mnemo
+        mnemo_sp[mnemo] = species
+    for node in out_sptree.iter_leaves():
+        if node.name in mnemo_sp.keys():
+            node.species = mnemo_sp[node.name]
+        else:
+            node.species = node.name
+
+    all_phyla = set()
+
+    no_species_dict = {}
+
+    for key in whole_tax_dict:
+        no_sp = [el for el in whole_tax_dict[key] if el[1] != "species"]
+        no_species_dict[key] = no_sp
+
+    for key in whole_tax_dict:
+        for el in no_species_dict[key]:
             all_phyla.add(el[0])
 
     color_dict = {}
     colors = ete3.random_color(num=len(set(all_phyla)))
     color_dict = {el[1]: el[0] for el in list(zip(colors, list(all_phyla)))}
+    color_dict[""] = "white"
 
-    for key in whole_tax_dict:
-        new_tuple = [el + (color_dict[el[0]],) for el in whole_tax_dict[key]]
-        whole_tax_dict[key] = new_tuple
+    for key in no_species_dict:
+        new_tuple = [el + (color_dict[el[0]],) for el in no_species_dict[key]]
+        no_species_dict[key] = new_tuple
 
-    # get order and order keys
-    for node in sptree.iter_leaves():
+    num_clades = [len(no_species_dict[key]) for key in no_species_dict][0]
+
+    for node in out_sptree.iter_leaves():
         if node.name in tax_dict.keys():
-            sp_df = whole_tax_dict[node.species]
+            sp_df = no_species_dict[node.species][::-1]
         else:
             sp_df = [("", "", "")] * num_clades
         node.add_feature("col_df", sp_df)
-
-    return sptree
-    # return whole_tax_dict
+    return out_sptree
 
 
-def layout_species(node):
+def annotate_boxes(taxo_sptree, whole_tax_dict, target=5):
+
+    clade_dict = {}
+    for tax in whole_tax_dict.values():
+        for el in tax:
+            if el[1] not in clade_dict:
+                clade_dict[el[1]] = set()
+            clade_dict[el[1]].add(el[0])
+
+    num_dict = {el: len(clade_dict[el]) for el in clade_dict}
+    key, value = min(num_dict.items(), key=lambda kv: abs(kv[1] - target))
+
+    out_sptree = taxo_sptree.copy("cpickle")
+    # find taxa closes to 3/4 groups
+    classes = set()
+    for node in out_sptree:
+        for row in node.col_df:
+            if key in row:
+                node.tax_class = row[0]
+                classes.add(node.tax_class)
+
+    color_dict = {}
+    colors = ete3.random_color(num=len(classes))
+    color_dict = {el[1]: el[0] for el in list(zip(colors, list(classes)))}
+
+    for tax_class in list(classes):
+        nodes = [node.name for node in out_sptree if node.tax_class == tax_class]
+        nst = ete3.NodeStyle()
+        nst["bgcolor"] = color_dict[tax_class]
+        if len(nodes) > 1:
+            mrca = out_sptree.get_common_ancestor(nodes)
+            mrca.set_style(nst)
+        else:
+            node = out_sptree & nodes[0]
+            node.set_style(nst)
+    return out_sptree, color_dict
+
+
+def layout_species_taxon(node):
     width = 100  # try to find a mulitplicator or something
     # If node is a leaf, add the nodes name and a its scientific
     # name
@@ -598,31 +800,34 @@ def layout_species(node):
             col_idx += 1
 
 
-def layout_species_circular(node):
+def layout_species_std(node):
     node.img_style["size"] = 0
     if node.is_leaf():
         name_face = ete3.faces.AttrFace("species")
         ete3.faces.add_face_to_node(name_face, node, column=0, position="branch-right")
 
 
-def viz_species_tree(sptree, show=True, render=None):
+def viz_species_tree(
+    sptree, legend=None, taxonomy=False, circular=False, show=True, render=None
+):
     ts = ete3.TreeStyle()
     ts.show_leaf_name = False
-    ts.allow_face_overlap = True
+    # ts.allow_face_overlap = True
     ts.draw_aligned_faces_as_table = True
-    ts.layout_fn = layout_species
-    # sptree.render("prova.png",tree_style = ts)
-    if show:
-        sptree.show(tree_style=ts)
-    if render is not None:
-        sptree.render(render, tree_style=ts)
-
-
-def viz_species_tree_circular(sptree, show=True, render=None):
-    ts = ete3.TreeStyle()
-    ts.show_leaf_name = False
-    ts.layout_fn = layout_species_circular
-    ts.mode = "c"
+    if legend is not None:
+        ts.legend_position = 4
+        for el in legend.items():
+            ts.legend.add_face(
+                ete3.faces.RectFace(width=10, height=10, fgcolor=el[1], bgcolor=el[1]),
+                column=0,
+            )
+            ts.legend.add_face(ete3.faces.TextFace(" " + el[0]), column=1)
+    if taxonomy:
+        ts.layout_fn = layout_species_taxon
+    else:
+        ts.layout_fn = layout_species_std
+    if circular:
+        ts.mode = "c"
     if show:
         sptree.show(tree_style=ts)
     if render is not None:
@@ -630,6 +835,21 @@ def viz_species_tree_circular(sptree, show=True, render=None):
 
 
 def annotate_genetree(genetree, taxo_dict):
+    """Annotate genetree in order to visualize the events.
+
+    Parameters
+    ----------
+    genetree : tree
+        Gene tree.
+    taxo_dict : dict
+        Taxonomic dict obtained with get_tax_dict_*
+
+    Returns
+    -------
+    tree
+        tree where each leaf has a color based on taxonomic id
+
+    """
 
     colors = ete3.random_color(num=len(set(taxo_dict)))
 
@@ -704,13 +924,27 @@ def analyze_rooting(spe2age):
     den = len(spe2age)
     frac = str(num) + "/" + str(den)
     dec = num / den
-    a = [frac, dec, num, den]
     fracs = [frac, dec, num, den]
 
     return fracs
 
 
 def get_ftp_stats(phylome_ids=None, all=False):
+    """Get files and dimensions for a phylome stored in FTP server.
+
+    Parameters
+    ----------
+    phylome_ids : list
+        List of phylome ids (if not given all must be set to True).
+    all : bool
+        If set to True it will return the name-size dictionary for all phylomes in ftp.
+
+    Returns
+    -------
+    dict
+        A dicitonary where filenames are key and byte size are values.
+
+    """
     ftp = FTP("ftp.phylomedb.org")
     ftp.login()
     ftp.cwd("phylomedb")
@@ -735,3 +969,54 @@ def get_ftp_stats(phylome_ids=None, all=False):
     ftp.close()
 
     return ftp_dict
+
+
+def get_ftp_files(
+    phylome_id, outdir=None, to_get=["best_trees", "all_algs", "phylome_info"]
+):
+    """Get files stored in ftp directory for specific phylome.
+
+    Parameters
+    ----------
+    phylome_id : str or int
+        Phylome id.
+    outdir : str
+        Output directory where files will be stored. If not given it will be the same as in ftp server.
+    to_get : list
+        List of file names (without extension) to get from ftp. Default is to_get=["best_trees", "all_algs", "phylome_info"].
+
+    Returns
+    -------
+    type
+        An outdir with the requested files if present in ftp.
+
+    """
+    ftp = FTP("ftp.phylomedb.org")
+    ftp.login()
+    ftp.cwd("phylomedb")
+    ftp.cwd("phylomes")
+
+    subdir = "phylome_" + str(format(int(phylome_id), "04d"))
+
+    ftp.cwd(subdir)
+
+    files_in_ftp = ftp.nlst()
+
+    if outdir is None:
+        outdir = subdir
+
+    create_folder(outdir)
+
+    for file in files_in_ftp:
+        # you could add warning if a requested file is not in nlst
+        file_nm = file.split(".")[0]
+        if file_nm in to_get:
+            local_filename = os.path.join(outdir, file)
+            print("file: " + file + " found, will be written in " + local_filename)
+            if os.path.isfile(local_filename):
+                print(local_filename + " already present!")
+            else:
+                with open(local_filename, "wb") as f:
+                    ftp.retrbinary("RETR " + file, f.write)
+
+    ftp.close()
