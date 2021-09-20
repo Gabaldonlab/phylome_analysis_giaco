@@ -2,6 +2,7 @@ import pandas as pd
 import os
 from ete3 import Tree, NCBITaxa
 import plotly.express as px
+import plotly.figure_factory as ff
 
 # import plotly.figure_factory as ff
 # from plotly.subplots import make_subplots
@@ -19,9 +20,11 @@ def get_generax_df(res_dir):
         id = os.path.basename(file).replace("_eventCounts.txt", "")
         df = pd.read_csv(file, delimiter=":", header=None).transpose()
         df = df.rename(columns=df.iloc[0]).drop(df.index[0])
+        cols = df.columns
+        df[cols] = df[cols].apply(pd.to_numeric, errors="coerce")
         df["Index"] = id
         main_df = main_df.append(df, ignore_index=True)
-    main_df["Leaf"] = pd.to_numeric(main_df["Leaf"])
+    # main_df["Leaf"] = pd.to_numeric(main_df["Leaf"])
     for i in ["S", "SL", "D", "T", "TL", "L"]:
         new_nm = i + "_norm"
         main_df[new_nm] = main_df[i] / main_df["Leaf"]
@@ -73,7 +76,7 @@ def get_ecce_df(treeFile, ecce_out):  # , out_dir):
     return df
 
 
-def ternary_ecce_plot(df_ecce, renderer="notebook_connected"):
+def ternary_ecce_plot(df_ecce, renderer=None, template="plotly_white"):
     fig = px.scatter_ternary(
         df_ecce,
         a="D_norm",
@@ -81,13 +84,46 @@ def ternary_ecce_plot(df_ecce, renderer="notebook_connected"):
         c="L_norm",
         color="Leaf",
         hover_name="Index",
-        template="simple_white",
+        template=template,
     )  # , title="Ternary plots of each gene family ecceTera DTL normalized rates colored by number of leaf in the family")
-    fig.show(renderer=renderer)
+    if renderer is not None:
+        fig.show(renderer=renderer)
+    else:
+        fig.show()
+
+
+def dist_ecce_plot(
+    df,
+    cols=["D_norm", "T_norm", "L_norm"],
+    show_hist=False,
+    show_rug=False,
+    show_curve=True,
+    bin_size=0.03,
+    template="plotly_white",
+    renderer=None,
+):
+    # option for clums and for rug and hist
+    fig = ff.create_distplot(
+        [df[c] for c in cols],
+        cols,
+        show_hist=show_hist,
+        show_rug=show_rug,
+        show_curve=show_curve,
+        bin_size=bin_size,
+    )
+
+    fig.update_layout(template=template)
+    if renderer is not None:
+        fig.show(renderer=renderer)
+    else:
+        fig.show()
 
 
 def ternary_grax_plot(
-    df_grax, axes=["D_norm", "T_norm", "SL_norm"], renderer="notebook_connected"
+    df_grax,
+    axes=["D_norm", "T_norm", "SL_norm"],
+    renderer=None,
+    template="plotly_white",
 ):
     fig = px.scatter_ternary(
         df_grax,
@@ -96,9 +132,39 @@ def ternary_grax_plot(
         c=axes[2],
         color="Leaf",
         hover_name="Index",
-        template="simple_white",
+        template=template,
     )  # , title="Ternary plots of each gene family ecceTera DTL normalized rates colored by number of leaf in the family")
-    fig.show(renderer=renderer)
+    if renderer is not None:
+        fig.show(renderer=renderer)
+    else:
+        fig.show()
+
+
+def dist_grax_plot(
+    df,
+    cols=["D_norm", "S_norm", "SL_norm", "T_norm"],
+    show_hist=False,
+    show_rug=False,
+    show_curve=True,
+    bin_size=0.03,
+    template="plotly_white",
+    renderer=None,
+):
+    # option for clums and for rug and hist
+    fig = ff.create_distplot(
+        [df[c] for c in cols],
+        cols,
+        show_hist=show_hist,
+        show_rug=show_rug,
+        show_curve=show_curve,
+        bin_size=bin_size,
+    )
+
+    fig.update_layout(template=template)
+    if renderer is not None:
+        fig.show(renderer=renderer)
+    else:
+        fig.show()
 
 
 def get_proka_file(whole_tax_dict, out_dir="./"):

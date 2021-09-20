@@ -57,6 +57,7 @@ diff w/ Marina:
 
 #### TODOs:
 
+*add instructions to get files to reproduce example and add files that cant be obtained.
 * Documentation + errors mgmt + eventually automatic testing
 * add download phylome script.
 * add installation instructions
