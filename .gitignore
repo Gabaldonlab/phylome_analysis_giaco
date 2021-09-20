@@ -17,3 +17,4 @@ t
 .ipynb_checkpoints
 examples/*py
 scripts/
+examples/example_misc.ipynb

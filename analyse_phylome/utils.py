@@ -754,7 +754,7 @@ def annotate_boxes(taxo_sptree, whole_tax_dict, target=5):
     key, value = min(num_dict.items(), key=lambda kv: abs(kv[1] - target))
 
     out_sptree = taxo_sptree.copy("cpickle")
-    # find taxa closes to 3/4 groups
+
     classes = set()
     for node in out_sptree:
         for row in node.col_df:
@@ -767,7 +767,15 @@ def annotate_boxes(taxo_sptree, whole_tax_dict, target=5):
     color_dict = {el[1]: el[0] for el in list(zip(colors, list(classes)))}
 
     for tax_class in list(classes):
-        nodes = [node.name for node in out_sptree if node.tax_class == tax_class]
+        nodes = []
+        for node in out_sptree:
+            if node.species not in whole_tax_dict:
+                node.tax_class = ""
+            elif node.tax_class == tax_class:
+                nodes.append(node.name)
+        # nodes = [
+        #     node.name for node in out_sptree node.tax_class == tax_class
+        # ]
         nst = ete3.NodeStyle()
         nst["bgcolor"] = color_dict[tax_class]
         if len(nodes) > 1:
