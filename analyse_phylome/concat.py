@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
 import glob
 import ete3
+import sys
 import os
 from .utils import (
     run_command,
@@ -136,9 +138,13 @@ def create_partition_mod(path, treeFile, outFileName):
     with open(outFileName, "w") as part:
         for fileName in glob.glob(path + "/*"):
             # Ensuring the sequences are in fasta format
-            cmd = "awk '/^>/{if(N)exit;++N;} {print;}' " +  fileName + " | grep -v '>' | tr -d '\n' | wc -m"
+            cmd = (
+                "awk '/^>/{if(N)exit;++N;} {print;}' "
+                + fileName
+                + " | grep -v '>' | tr -d '\n' | wc -m"
+            )
             len_single = int(run_command_with_return(cmd)[0].strip().decode())
-            gene = os.path.basename(fileName).split('.')[0]
+            gene = os.path.basename(fileName).split(".")[0]
             start = num + 1
             end = start + len_single - 1
             mod = dict_mod[gene]
@@ -208,12 +214,12 @@ def build_extra_concatenated_alg2(
     pathsFile,
     outDir,
     readalPath,
-    spe2age,#=None,
-    min=5,
+    spe2age,  # =None,
+    prop=0.9,
     # midpoint=False,
     at_least=100,
     max_length=50000,
-    partition=False
+    partition=False,
 ):
     """Concatenate alignments collapsing clade specific duplications.
 
@@ -250,6 +256,8 @@ def build_extra_concatenated_alg2(
     cAlgsDir = concatDir + "/algs/"
     create_folder(cAlgsDir)
     # Collapse species specific duplications and obtain list of one-to-one trees
+    min = int(len(spe2age) - len(spe2age) * (1 - prop) + 1)
+
     counter = {}
     for line in open(treeFile):
         line = line.strip()
@@ -303,7 +311,16 @@ def build_extra_concatenated_alg2(
 
 # Script used to generate concatenated alignments
 def build_concatenated_alg(
-    trees121File, spe2age, pathsFile, outDir, readalPath, prop=0.9, at_least=100, max_length = 50000, partition=False, treeFile=None
+    trees121File,
+    spe2age,
+    pathsFile,
+    outDir,
+    readalPath,
+    prop=0.9,
+    at_least=100,
+    max_length=50000,
+    partition=False,
+    treeFile=None,
 ):
     """Align those 121 gene families where there at least `prop` species are represented.
 
@@ -332,7 +349,7 @@ def build_concatenated_alg(
         A outDir/concatenated dir where the alignments, the concatnated fasta and phy and some stats are stored.
 
     """
-    if not 0 <= prop <=1:
+    if not 0 <= prop <= 1:
         sys.exit("Prop must be between 0 and 1")
 
     concatDir = outDir + "/concatenated/"
@@ -398,20 +415,22 @@ def build_concatenated_alg(
                     if code in pathsList.keys():
                         cmd = "cp " + pathsList[code] + " " + workingDir
                         run_command(cmd, True)
-                concatFileName = concatDir + "/concatenated_" + str(i) + ".fasta"
+                concatFileName = concatDir + "concatenated_" + str(i) + ".fasta"
                 concatenate_alignments_from_path(
                     workingDir, concatFileName, spe2age, readalPath
                 )
                 if partition:
                     outFileName = concatDir + "/part_mod.txt"
                     create_partition_mod(workingDir, treeFile, outFileName)
-                fastaFile = concatDir + "/concatenated_" + str(i) + ".fasta"
-                phy_file = concatDir + "/concatenated_" + str(i) + ".phy"
+                fastaFile = concatDir + "concatenated_" + str(i) + ".fasta"
+                phy_file = concatDir + "concatenated_" + str(i) + ".phy"
                 with open(phy_file) as c:
                     first = c.readline()
                 length = first.strip().split()[1]
-            # If enough alignments have been concatenated then the lower leaf numbers will not be processed
-                outfile.write(str(i) + "\t" + str(len(counter[i])) + "\t" + length + "\n")
+                # If enough alignments have been concatenated then the lower leaf numbers will not be processed
+                outfile.write(
+                    str(i) + "\t" + str(len(counter[i])) + "\t" + length + "\n"
+                )
             if len(counter[i]) > at_least or int(length) > max_length:
                 limit = True
         outfile.close()
@@ -435,9 +454,16 @@ def get_orthologous_tree(t, code):
     return valid_subtree
 
 
-
 def build_extra_concatenated_alg3(
-    treeFile, pathsFile, outDir, readalPath, spe2age, min=5, at_least=500, max_length=50000, partition=False
+    treeFile,
+    pathsFile,
+    outDir,
+    readalPath,
+    spe2age,
+    prop=0.9,
+    at_least=500,
+    max_length=50000,
+    partition=False,
 ):
     """Concatenate alignments from orthologous subtrees.
 
@@ -474,6 +500,8 @@ def build_extra_concatenated_alg3(
     cAlgsDir = concatDir + "/algs/"
     create_folder(cAlgsDir)
     # Collapse species specific duplications and obtain list of one-to-one trees
+    min = int(len(spe2age) - len(spe2age) * (1 - prop) + 1)
+
     counter = {}
     for line in open(treeFile):
         line = line.strip()

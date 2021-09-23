@@ -57,7 +57,10 @@ diff w/ Marina:
 
 #### TODOs:
 
-*add instructions to get files to reproduce example and add files that cant be obtained.
+* maybe add species and annotate monophyletyc taxonomy in species tree generax viz. Single gene trees have per species count data!!!! Maybe a plotly dashboard will be perfect although overkill!
+* pipeline to create species tree will mix bash and python. Maybe it's already easy so keep it separate
+* eccetera plots. why in stdout number differ?? recphyloxml once updated then use https://github.com/WandrilleD/recPhyloXML ----> add warning that unsampled is not counted + add example with recPhyloXML.
+* add instructions to get files to reproduce example and add files that cant be obtained.
 * Documentation + errors mgmt + eventually automatic testing
 * add download phylome script.
 * add installation instructions

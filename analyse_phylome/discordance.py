@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import pandas as pd
 import os
 from ete3 import Tree, NCBITaxa
@@ -161,6 +162,37 @@ def dist_grax_plot(
     )
 
     fig.update_layout(template=template)
+    if renderer is not None:
+        fig.show(renderer=renderer)
+    else:
+        fig.show()
+
+
+# SCATTERPLOT MISSING VS COVERAGE
+
+
+def read_missingcov(fracmiss, spcov):
+    miss_df = pd.read_csv(fracmiss, header=None, sep=" ", names=["SPECIES", "MISSING"])
+    cov_df = pd.read_csv(spcov, sep=":")
+    merge_df = pd.merge(miss_df, cov_df)
+    return merge_df
+
+
+def plot_missingcov(df, text=True, template="simple_white", renderer=None):
+    if not text:
+        fig = px.scatter(
+            df,
+            x=" FAMILY_COVERAGE",
+            y="MISSING",
+            hover_data=["SPECIES"],
+            template=template,
+        )
+        fig.update_traces(textposition="top center")
+    else:
+        fig = px.scatter(
+            df, x=" FAMILY_COVERAGE", y="MISSING", text="SPECIES", template=template
+        )
+        fig.update_traces(textposition="top center")
     if renderer is not None:
         fig.show(renderer=renderer)
     else:

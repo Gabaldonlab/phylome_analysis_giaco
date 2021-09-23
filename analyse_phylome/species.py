@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import ete3
 import sys
 from .utils import load_species_name, load_species_name_whole, run_command
@@ -31,11 +32,11 @@ def obtain_duptree_file(treeFile, duptreeFile, midpoint=False):
             leaf.name = leaf.species
         # this is very important! before each tree was rooted with midpoint rooting I don't know why.
         t.resolve_polytomy()
-        #Root tree for new duptree
+        # Root tree for new duptree
         # if root:
         if midpoint:
             t.set_outgroup(t.get_midpoint_outgroup())
-            #if spe2age:
+            # if spe2age:
         outfile.write(t.write(format=9) + "\n")
     outfile.close()
 

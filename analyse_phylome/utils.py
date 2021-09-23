@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import subprocess as sp
 import sys
 import os
@@ -913,6 +914,114 @@ def viz_grax_tree(genetree, show=True, render=None):
         genetree.show(tree_style=ts)
     if render is not None:
         genetree.render(render, tree_style=ts)
+
+
+def read_per_sp_counts(events_file):
+    df = pd.read_csv(events_file, sep=" ")
+    df["#S"] = df["#S"].str.replace(r"S=", "")
+    df["#SL"] = df["#SL"].str.replace(r"SL=", "")
+    df["#D"] = df["#D"].str.replace(r"D=", "")
+    df["#T"] = df["#T"].str.replace(r"T=", "")
+    df["#TL"] = df["#TL"].str.replace(r"TL=", "")
+    cols = df.columns
+    df[cols] = df[cols].apply(pd.to_numeric, errors="coerce")
+    return df
+
+
+def annotate_sptree_counts(sptree, counts_df):
+    out_sptree = sptree.copy("cpickle")
+    for node in out_sptree.traverse():
+        values = [int(el) for el in counts_df.loc[node.name]]
+        node.values = values
+    return out_sptree
+
+
+def layout_pies(node):
+    # if node.is_leaf():
+    # values = [int(el) for el in df.loc[node.name][2:-1]]
+    # norm_vals = [(val / sum(values))*100 for val in values]
+    # labels = ["D", "T"]
+    # else:
+    palette = ["#ed4c67", "#f69e1f", "#1289a7"]
+    values = node.values[1:-1]
+    norm_vals = [(val / sum(values)) * 100 for val in values]
+    # B = faces.BarChartFace(values=values, labels=labels)
+    P = ete3.faces.PieChartFace(norm_vals, 100, 100, colors=palette)  # SL,D,T!
+    # Add node name to laef nodes
+    # faces.add_face_to_node(B, node, 0)#, position="branch-right")
+    ete3.faces.add_face_to_node(P, node, 0, position="branch-right")
+
+
+def viz_pies_tree(sptree, circular=False, show=True, render=None):
+    palette = ["#ed4c67", "#f69e1f", "#1289a7"]
+    labels = ["SL", "D", "T"]
+    legend = list(zip(labels, palette))
+
+    ts = ete3.TreeStyle()
+    ts.legend_position = 4
+    ts.layout_fn = layout_pies
+    if circular:
+        ts.mode = "c"
+
+    for el in legend:
+        ts.legend.add_face(
+            ete3.faces.RectFace(width=50, height=50, fgcolor=el[1], bgcolor=el[1]),
+            column=0,
+        )
+        ts.legend.add_face(ete3.faces.TextFace(" " + el[0], fsize=20), column=1)
+    if show:
+        sptree.show(tree_style=ts)
+    if render is not None:
+        sptree.render(render, tree_style=ts)
+
+
+def annotate_sptree_ancsize(sptree, counts_df):
+    out_sptree = sptree.copy("cpickle")
+    # very ugly code!
+    scale = 0
+    for node in out_sptree.traverse():
+        if not node.is_leaf():
+            anc_size = sum([int(el) for el in counts_df.loc[node.name][0:1]])
+            if anc_size > scale:
+                scale = anc_size
+    for node in out_sptree.traverse():
+        if not node.is_leaf():
+            anc_size = (
+                sum([int(el) for el in counts_df.loc[node.name][0:1]]) / scale * 10
+            )
+            node.anc_size = anc_size
+    return out_sptree, scale
+
+
+# Comment 2: the best way to estimate the size of an ancestral genome is to count the number of S and SL events associated with this genome. Do not forget the SL events.
+
+
+def layout_anc(node):
+    node.img_style["size"] = 0
+    if not node.is_leaf():
+        # norm_vals = [(val / sum(values)) * 100 for val in values]
+        C = ete3.faces.CircleFace(radius=node.anc_size, color="teal", style="sphere")
+        # C.opacity = 0.1
+        # Add node name to laef nodes
+        ete3.faces.add_face_to_node(
+            C, node, 0, position="float"
+        )  # , position="branch-right")
+
+
+def viz_ancsize_tree(sptree, scale, circular=False, show=True, render=None):
+    ts_anc = ete3.TreeStyle()
+    ts_anc.layout_fn = layout_anc
+    if circular:
+        ts_anc.mode = "c"
+    ts_anc.legend_position = 4
+    ts_anc.legend.add_face(
+        ete3.faces.CircleFace(10, color="teal", style="sphere"), column=0
+    )
+    ts_anc.legend.add_face(ete3.faces.TextFace(" " + "S+SL: " + str(scale)), column=1)
+    if show:
+        sptree.show(tree_style=ts_anc)
+    if render is not None:
+        sptree.render(render, tree_style=ts_anc)
 
 
 def rename_tree_tax(tree, taxo_dict):
