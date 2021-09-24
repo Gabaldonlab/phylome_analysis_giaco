@@ -77,7 +77,14 @@ def get_ecce_df(treeFile, ecce_out):  # , out_dir):
     return df
 
 
-def ternary_ecce_plot(df_ecce, renderer=None, template="plotly_white"):
+def ternary_ecce_plot(
+    df_ecce,
+    renderer=None,
+    template="plotly_white",
+    show=True,
+    out_img=None,
+    interactive=True,
+):
     fig = px.scatter_ternary(
         df_ecce,
         a="D_norm",
@@ -87,10 +94,16 @@ def ternary_ecce_plot(df_ecce, renderer=None, template="plotly_white"):
         hover_name="Index",
         template=template,
     )  # , title="Ternary plots of each gene family ecceTera DTL normalized rates colored by number of leaf in the family")
-    if renderer is not None:
-        fig.show(renderer=renderer)
-    else:
-        fig.show()
+    if show:
+        if renderer is not None:
+            fig.show(renderer=renderer)
+        else:
+            fig.show()
+    if not show and out_img is not None:
+        if interactive:
+            fig.write_html(out_img)
+        else:
+            fig.write_image(out_img)
 
 
 def dist_ecce_plot(
@@ -102,6 +115,9 @@ def dist_ecce_plot(
     bin_size=0.03,
     template="plotly_white",
     renderer=None,
+    show=True,
+    out_img=None,
+    interactive=True,
 ):
     # option for clums and for rug and hist
     fig = ff.create_distplot(
@@ -114,10 +130,16 @@ def dist_ecce_plot(
     )
 
     fig.update_layout(template=template)
-    if renderer is not None:
-        fig.show(renderer=renderer)
-    else:
-        fig.show()
+    if show:
+        if renderer is not None:
+            fig.show(renderer=renderer)
+        else:
+            fig.show()
+    if not show and out_img is not None:
+        if interactive:
+            fig.write_html(out_img)
+        else:
+            fig.write_image(out_img)
 
 
 def ternary_grax_plot(
@@ -125,6 +147,9 @@ def ternary_grax_plot(
     axes=["D_norm", "T_norm", "SL_norm"],
     renderer=None,
     template="plotly_white",
+    show=True,
+    out_img=None,
+    interactive=True,
 ):
     fig = px.scatter_ternary(
         df_grax,
@@ -135,10 +160,16 @@ def ternary_grax_plot(
         hover_name="Index",
         template=template,
     )  # , title="Ternary plots of each gene family ecceTera DTL normalized rates colored by number of leaf in the family")
-    if renderer is not None:
-        fig.show(renderer=renderer)
-    else:
-        fig.show()
+    if show:
+        if renderer is not None:
+            fig.show(renderer=renderer)
+        else:
+            fig.show()
+    if not show and out_img is not None:
+        if interactive:
+            fig.write_html(out_img)
+        else:
+            fig.write_image(out_img)
 
 
 def dist_grax_plot(
@@ -150,6 +181,9 @@ def dist_grax_plot(
     bin_size=0.03,
     template="plotly_white",
     renderer=None,
+    show=True,
+    out_img=None,
+    interactive=True,
 ):
     # option for clums and for rug and hist
     fig = ff.create_distplot(
@@ -162,10 +196,16 @@ def dist_grax_plot(
     )
 
     fig.update_layout(template=template)
-    if renderer is not None:
-        fig.show(renderer=renderer)
-    else:
-        fig.show()
+    if show:
+        if renderer is not None:
+            fig.show(renderer=renderer)
+        else:
+            fig.show()
+    if not show and out_img is not None:
+        if interactive:
+            fig.write_html(out_img)
+        else:
+            fig.write_image(out_img)
 
 
 # SCATTERPLOT MISSING VS COVERAGE
@@ -178,7 +218,15 @@ def read_missingcov(fracmiss, spcov):
     return merge_df
 
 
-def plot_missingcov(df, text=True, template="simple_white", renderer=None):
+def plot_missingcov(
+    df,
+    text=True,
+    template="simple_white",
+    renderer=None,
+    show=True,
+    out_img=None,
+    interactive=True,
+):
     if not text:
         fig = px.scatter(
             df,
@@ -193,10 +241,16 @@ def plot_missingcov(df, text=True, template="simple_white", renderer=None):
             df, x=" FAMILY_COVERAGE", y="MISSING", text="SPECIES", template=template
         )
         fig.update_traces(textposition="top center")
-    if renderer is not None:
-        fig.show(renderer=renderer)
-    else:
-        fig.show()
+    if show:
+        if renderer is not None:
+            fig.show(renderer=renderer)
+        else:
+            fig.show()
+    if not show and out_img is not None:
+        if interactive:
+            fig.write_html(out_img)
+        else:
+            fig.write_image(out_img)
 
 
 def get_proka_file(whole_tax_dict, out_dir="./"):

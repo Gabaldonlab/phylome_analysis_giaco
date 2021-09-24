@@ -20,6 +20,10 @@ Then go in phylome_analysis_giaco dir and run:
 
 `pip install .`
 
+If you are in the cluster. Clone the directory then cd into it and requirements
+
+`python setup.py install --user`
+
 ## Usage
 
 See jupyter notebooks in "examples" directory to browse different cases. Alternatively most function have documentation accessible through help(function)
@@ -58,6 +62,7 @@ diff w/ Marina:
 #### TODOs:
 
 * maybe add species and annotate monophyletyc taxonomy in species tree generax viz. Single gene trees have per species count data!!!! Maybe a plotly dashboard will be perfect although overkill!
+* add verbosity to the pipeline
 * pipeline to create species tree will mix bash and python. Maybe it's already easy so keep it separate
 * eccetera plots. why in stdout number differ?? recphyloxml once updated then use https://github.com/WandrilleD/recPhyloXML ----> add warning that unsampled is not counted + add example with recPhyloXML.
 * add instructions to get files to reproduce example and add files that cant be obtained.

@@ -4,6 +4,7 @@ import analyse_phylome as ap
 import argparse
 from ete3 import Tree
 import os.path
+import pandas as pd
 
 # Parse data
 parser = argparse.ArgumentParser(
@@ -85,9 +86,10 @@ phy_id = str(args.phyID)
 # print_all = "print.reconciliations=1 print.info=1  orthology.output=1 print.newick=1 print.graph=1"
 
 if args.method == "ecce":
-    ecce_trees = args.outdir + "/" + "ecce_best_trees" + phy_id + ".txt"
+    ecce_trees = args.outdir + "/" + "ecce_best_trees" + phy_id + ".nwk"
     ap.get_ecce_data(trees, args.species_tree, args.outdir)
     log_file = args.outdir + "/phylome_" + phy_id + "_ecce.out"
+    log_data = args.outdir + "/phylome_" + phy_id + "_ecce.csv"
     cmd = (
         args.exe
         + " species.file="
@@ -96,25 +98,33 @@ if args.method == "ecce":
         + ecce_trees
         + " dated=0 verbose=1 print.reconciliations=1 recPhyloXML.reconciliation=true output.dir="
         + args.outdir
-        + "/ecce_results"
+        + "/ecce_results_phylome_"
+        + phy_id
         + args.arguments
         + " > "
         + log_file
     )
     ap.run_command(cmd)
+    ter_ecce = args.outdir + "/ecce_" + phy_id + "_ternary.html"
+    ecce_dist = args.outdir + "/ecce_" + phy_id + "_dist.html"
+    ecce_df = ap.get_ecce_df(trees, log_file)
+    ecce_df.to_csv(log_data, index=False)
+    ap.ternary_ecce_plot(ecce_df, show=False, out_img=ter_ecce)
+    ap.dist_ecce_plot(ecce_df, show=False, out_img=ecce_dist)
+
 
 # maybe option to clean up all output files
 if args.method == "grax":
-    # ap.scan_for_Us(args.alndir, replace=True)
+    ap.scan_for_Us(args.alndir, replace=True)
     out_grax_dir = args.outdir + "/grax_phylome_" + phy_id
     ap.get_generax_data(trees, out_grax_dir, args.alndir)
-    # If you want oother options directly modify this part!
+    # If you want other options directly modify this part!
     # It's bad but otherwise too many params.
     cmd = (
-        "mpiexec -np "
-        + str(args.threads)
-        + " "
-        + args.exe
+        # "mpiexec -np "
+        # + str(args.threads)
+        # + " "
+        args.exe
         + " -s "
         + args.species_tree
         + " --families "
@@ -124,6 +134,24 @@ if args.method == "grax":
         + out_grax_dir
     )
     ap.run_command(cmd)
+    out_ter = out_grax_dir + "/grax_" + phy_id + "_ternary.html"
+    out_dist = out_grax_dir + "/grax_" + phy_id + "_dist.html"
+    out_pies = out_grax_dir + "/grax_" + phy_id + "_DTL_pies.png"
+    out_anc = out_grax_dir + "/grax_" + phy_id + "_ancsize_bubbles.png"
+    grax_tree = out_grax_dir + "/species_trees/inferred_species_tree.newick"
+    grax_df_file = out_grax_dir + "/grax_" + phy_id + "_results.csv"
+    grax_df = ap.get_generax_df(out_grax_dir)
+    grax_df.to_csv(grax_df_file, index=False)
+
+    ap.ternary_grax_plot(grax_df, show=False, out_img=out_ter)
+    ap.dist_grax_plot(grax_df, show=False, out_img=out_dist)
+    sptree = Tree(grax_tree, format=1)
+    events_file = out_grax_dir + "/per_species_event_counts.txt"
+    events_df = ap.read_per_sp_counts(events_file)
+    ann_sptree = ap.annotate_sptree_counts(sptree, events_df)
+    ap.viz_pies_tree(ann_sptree, show=False, render=out_pies)
+    anc_size_tree, scale = ap.annotate_sptree_ancsize(ann_sptree, events_df)
+    ap.viz_ancsize_tree(anc_size_tree, scale, circular=True, show=False, render=out_anc)
 
 
 if "abac" in args.method:

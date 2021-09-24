@@ -210,7 +210,7 @@ def root_species_tree(t, spe2age=None, midpoint=False, out_list=None):
             )
             print(furthest)
             if p.get_common_ancestor(furthest) == p.get_tree_root():
-                print(
+                raise ValueError(
                     "Could not find a monophyletic clade containing all furthest species, try midppoint rooting or give a list of outgroup"
                 )
             # p.set_outgroup(p.get_midpoint_outgroup())
@@ -944,7 +944,10 @@ def layout_pies(node):
     # else:
     palette = ["#ed4c67", "#f69e1f", "#1289a7"]
     values = node.values[1:-1]
-    norm_vals = [(val / sum(values)) * 100 for val in values]
+    if sum(values) > 0:
+        norm_vals = [(val / sum(values)) * 100 for val in values]
+    else:
+        norm_vals = [0, 0, 0]
     # B = faces.BarChartFace(values=values, labels=labels)
     P = ete3.faces.PieChartFace(norm_vals, 100, 100, colors=palette)  # SL,D,T!
     # Add node name to laef nodes
