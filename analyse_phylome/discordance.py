@@ -12,6 +12,19 @@ from .utils import run_command, get_taxonomic_df, get_dataframe
 
 
 def get_generax_df(res_dir):
+    """Get a Pandas dataframe from Generax output directory.
+
+    Parameters
+    ----------
+    res_dir : str
+        Generax output directory.
+
+    Returns
+    -------
+    df
+        A pandas dataframe with Generax results.
+
+    """
     pattern = res_dir + "/reconciliations/*eventCounts*"
     list_files = glob.glob(pattern)
 
@@ -34,6 +47,21 @@ def get_generax_df(res_dir):
 
 
 def get_ecce_df(treeFile, ecce_out):  # , out_dir):
+    """Get a Pandas dataframe from ecceTERA output directory.
+
+    Parameters
+    ----------
+    treeFile : str
+        Path to best trees file.
+    ecce_out : str
+        Path to eccetera results dir.
+
+    Returns
+    -------
+    df
+        A pandas dataframe with ecceTERA results.
+
+    """
 
     # outfile_nm = os.path.basename(ecce_out)
     # outfile_nm_noex = os.path.splitext(outfile_nm)[0]

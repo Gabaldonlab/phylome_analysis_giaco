@@ -179,7 +179,7 @@ def root_tree(t, spe2age=None, midpoint=False):
     return t
 
 
-def root_species_tree(t, spe2age=None, midpoint=False, out_list=None):
+def root_species_tree(t, spe2age=None, midpoint=False, out_list=None, force=False):
     """Root a species tree.
 
     Parameters
@@ -192,7 +192,8 @@ def root_species_tree(t, spe2age=None, midpoint=False, out_list=None):
         Do midpoint rooting.
     out_list : list
         Lisst of outgroup species.
-
+    force:
+        if furthest species from species 2 age dictionary remove one and try again until a monophyletic outgroup can be set. The furthest species are removed in order of topological distance from seed (closest are removed first!). May not have much sense, therefore use it with caution!
     Returns
     -------
     tree
@@ -210,9 +211,23 @@ def root_species_tree(t, spe2age=None, midpoint=False, out_list=None):
             )
             print(furthest)
             if p.get_common_ancestor(furthest) == p.get_tree_root():
-                raise ValueError(
-                    "Could not find a monophyletic clade containing all furthest species, try midppoint rooting or give a list of outgroup"
-                )
+                if force:
+                    red = sort_furthest_by_dist(spe2age, p)
+                    num = len(furthest)
+                    while num > 0:
+                        red = red[1:]
+                        if p.get_common_ancestor(red) == p.get_tree_root():
+                            num = num - 1
+                            continue
+                        else:
+                            print("Found monophyletic outgroup:")
+                            print(red)
+                            p.set_outgroup(p.get_common_ancestor(red))
+                            break
+                else:
+                    raise ValueError(
+                        "Could not find a monophyletic clade containing all furthest species, try midppoint rooting or give a list of outgroup"
+                    )
             # p.set_outgroup(p.get_midpoint_outgroup())
             else:
                 p.set_outgroup(p.get_common_ancestor(furthest))
@@ -228,6 +243,18 @@ def root_species_tree(t, spe2age=None, midpoint=False, out_list=None):
         else:
             p.set_outgroup(p.get_common_ancestor(out_list))
     return p
+
+
+def sort_furthest_by_dist(s2a, tree):
+    furthest = [k for k, v in s2a.items() if v == max(s2a.values())]
+    seed = [k for k, v in s2a.items() if v == min(s2a.values())]
+    dist_furthest = {}
+    for el in furthest:
+        dest = tree & el
+        arr = tree & seed[0]
+        dist_furthest[el] = arr.get_distance(dest)
+    furthest = sorted(furthest, key=dist_furthest.get)
+    return furthest
 
 
 def print_sequence(code, sequence, outfile):
@@ -817,7 +844,13 @@ def layout_species_std(node):
 
 
 def viz_species_tree(
-    sptree, legend=None, taxonomy=False, circular=False, show=True, render=None
+    sptree,
+    legend=None,
+    taxonomy=False,
+    circular=False,
+    show=True,
+    render=None,
+    bs=False,
 ):
     ts = ete3.TreeStyle()
     ts.show_leaf_name = False
@@ -839,6 +872,8 @@ def viz_species_tree(
         ts.mode = "c"
     if show:
         sptree.show(tree_style=ts)
+    if bs:
+        ts.show_branch_support = True
     if render is not None:
         sptree.render(render, tree_style=ts)
 
