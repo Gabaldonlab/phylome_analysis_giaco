@@ -10,6 +10,8 @@ import plotly.figure_factory as ff
 import glob
 from .utils import run_command, get_taxonomic_df, get_dataframe
 
+from .ReconciledTreeIO import recPhyloXML_parser
+
 
 def get_generax_df(res_dir):
     """Get a Pandas dataframe from Generax output directory.
@@ -378,3 +380,212 @@ def run_abaccus(
         with open(out_greasy, "w") as gf:
             for item in cmds:
                 gf.write("%s\n" % item)
+
+
+def get_ternary_phylome_data(list_df_csv, tree_dir):
+    data = []
+    # THIS IS BAD:
+    # you need  way to compute the number of species in a phylome
+    # one way is to force the user to put the csv and the species tree in a directory
+    tree_dict = {}
+    for tree in glob.glob(tree_dir + "/*nwk"):
+        phy_id = int("".join(filter(str.isdigit, tree)))
+        tree_dict[phy_id] = tree
+    # for each phylome in files in directory
+    for df in list_df_csv:
+        # file must cointain either grax or ecce and phylome_id!
+        if "grax" in df:
+            method = "grax"
+        elif "ecce" in df:
+            method = "ecce"
+        else:
+            method = "Unknown"
+
+        single_df = pd.read_csv(df)
+        phy_id = int("".join(filter(str.isdigit, df)))
+
+        sprax_tree = Tree(tree_dict[phy_id], format=1)
+        num_sp = len(sprax_tree.get_leaves())
+        num_genes = len(single_df)
+        # Sum of each ctegory will be normalized by num genes * num of species
+        norm_factor = num_genes * num_sp
+
+        D_norm = sum(single_df["D"]) / norm_factor
+        T_norm = sum(single_df["T"]) / norm_factor
+        if method == "grax":
+            L_norm = sum(single_df["SL"]) / norm_factor
+        elif method == "ecce":
+            L_norm = sum(single_df["L"]) / norm_factor
+
+        norm_to_one = 1 / sum([D_norm, T_norm, L_norm])
+        D_norm_one = D_norm * norm_to_one
+        T_norm_one = T_norm * norm_to_one
+        L_norm_one = L_norm * norm_to_one
+
+        row = [
+            phy_id,
+            D_norm,
+            T_norm,
+            L_norm,
+            D_norm_one,
+            T_norm_one,
+            L_norm_one,
+            method,
+            num_sp,
+            num_genes,
+        ]
+        data.append(row)
+    colnames = [
+        "phy_id",
+        "D_norm",
+        "T_norm",
+        "L_norm",
+        "D_norm_one",
+        "T_norm_one",
+        "L_norm_one",
+        "method",
+        "num_sp",
+        "num_genes",
+    ]
+
+    df = pd.DataFrame(data, columns=colnames)
+    df["phylome"] = df["phy_id"].astype(str)
+    return df
+
+
+def plot_ternary_phylome(
+    df,
+    renderer=None,
+    template="plotly_white",
+    show=True,
+    out_img=None,
+    interactive=True,
+):
+    fig = px.scatter_ternary(
+        df,
+        a="D_norm_one",
+        b="T_norm_one",
+        c="L_norm_one",
+        hover_name="phy_id",
+        symbol="method",
+        color="phylome",
+        template=template,
+    )
+    if show:
+        if renderer is not None:
+            fig.show(renderer=renderer)
+        else:
+            fig.show()
+    if not show and out_img is not None:
+        if interactive:
+            fig.write_html(out_img)
+        else:
+            fig.write_image(out_img)
+
+
+def get_translation_dict(ecce_rec, grax_rec):
+    ecce_names = []
+    for node in ecce_rec.spTree.traverse():
+        ecce_names.append(node.name)
+    # prune unsampled leaf as generax does not have it
+    ecce_rec.spTree.prune([el for el in ecce_names if el != "UNSAMPLED"])
+
+    ecce_dict = {}
+    for node in ecce_rec.spTree.traverse():
+        desc = [el.name for el in node.get_descendants() if el.is_leaf()]
+        ecce_dict[node.name] = desc
+
+    grax_dict = {}
+    for node in grax_rec.spTree.traverse():
+        desc = [el.name for el in node.get_descendants() if el.is_leaf()]
+        grax_dict[node.name] = desc
+    # find keys with same descendants so that internal nodes may be translated
+    matches = {}
+    for k in ecce_dict:
+        for i in grax_dict:
+            if len(ecce_dict[k]) == 0:
+                matches[k] = k
+            elif sorted(ecce_dict[k]) == sorted(grax_dict[i]):
+                matches[k] = i
+    return matches
+
+
+def compare_rectree(ecce_rec, grax_rec, matches):
+    ecce_sum = ecce_rec.getEventsSummary()
+    grax_sum = grax_rec.getEventsSummary()
+
+    new_ecce_sum = {}
+    for key, val in ecce_sum.items():
+        new_tuple = [matches[el] for el in val if el != "UNSAMPLED"]
+        new_ecce_sum[key] = new_tuple
+
+    only_ecce = {}
+    only_grax = {}
+    both = {}
+
+    for key in new_ecce_sum:
+        both[key] = set(new_ecce_sum[key]).intersection(set(grax_sum[key]))
+        only_ecce[key] = set(new_ecce_sum[key]).difference(set(grax_sum[key]))
+        only_grax[key] = set(grax_sum[key]).difference(set(new_ecce_sum[key]))
+
+    return only_ecce, only_grax, both
+
+
+def obtain_ecce_counts(out_dir):
+    rec_ecce_files = glob.glob(out_dir + "/*_canonical_symmetric*")
+    parser = recPhyloXML_parser()
+
+    # dict_long = {}
+    dup_dict = {}
+    loss_dict = {}
+    trans_dict = {}
+
+    for file in rec_ecce_files:
+        ecce_rec = parser.parse(file)
+        events_dict = ecce_rec.getEventsSummary()
+        for key in events_dict:
+            if key == "loss":
+                loss = {
+                    value: events_dict[key].count(value) for value in events_dict[key]
+                }
+                loss_dict = {
+                    k: loss.get(k, 0) + loss_dict.get(k, 0)
+                    for k in set(loss) | set(loss_dict)
+                }
+            if key == "duplication":
+                dup = {
+                    value: events_dict[key].count(value) for value in events_dict[key]
+                }
+                dup_dict = {
+                    k: dup.get(k, 0) + dup_dict.get(k, 0)
+                    for k in set(dup) | set(dup_dict)
+                }
+            if key == "transferReception":
+                trans = {
+                    value: events_dict[key].count(value) for value in events_dict[key]
+                }
+                trans_dict = {
+                    k: trans.get(k, 0) + trans_dict.get(k, 0)
+                    for k in set(trans) | set(trans_dict)
+                }
+
+    ecce_names = [node.name for node in ecce_rec.spTree.traverse()]
+
+    sp_ev_counts_ecce = []
+
+    for key in ecce_names:
+        D = dup_dict.get(key)
+        T = trans_dict.get(key)
+        L = loss_dict.get(key)
+        if D is None:
+            D = 0
+        if T is None:
+            T = 0
+        if L is None:
+            L = 0
+        row = [key, D, T, L]
+        sp_ev_counts_ecce.append(row)
+
+    counts_df = pd.DataFrame(sp_ev_counts_ecce, columns=["node", "D", "T", "L"])
+    counts_df = counts_df.set_index("node")
+    return counts_df

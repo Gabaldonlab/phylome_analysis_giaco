@@ -971,6 +971,26 @@ def annotate_sptree_counts(sptree, counts_df):
     return out_sptree
 
 
+def annotate_sptree_counts_both(sptree, counts_ecce, counts_grax, matches):
+    out_sptree = sptree.copy("cpickle")
+    for node in out_sptree.traverse():
+        ecce_values = [int(el) for el in counts_ecce.loc[node.name]]
+        node.ecce_values = ecce_values
+        grax_key = matches[node.name]
+        grax_values = [int(el) for el in counts_grax.loc[grax_key]]
+        node.grax_values = grax_values
+    return out_sptree
+
+
+def layout_both_bars(node):
+    palette = ["#ed4c67", "#f69e1f", "#1289a7"] + ["#ed4c67", "#f69e1f", "#1289a7"]
+    values = node.ecce_values + node.grax_values[1:-1]
+    # values = [j - i for i, j in zip(node.grax_values[1:-1], node.ecce_values)]
+    B = ete3.faces.BarChartFace(values, colors=palette)  # SL,D,T!
+    # Add node name to laef nodes
+    ete3.faces.add_face_to_node(B, node, 0, position="branch-right")
+
+
 def layout_pies(node):
     # if node.is_leaf():
     # values = [int(el) for el in df.loc[node.name][2:-1]]
@@ -978,7 +998,10 @@ def layout_pies(node):
     # labels = ["D", "T"]
     # else:
     palette = ["#ed4c67", "#f69e1f", "#1289a7"]
-    values = node.values[1:-1]
+    if len(node.values) > 3:
+        values = node.values[1:-1]
+    else:
+        values = node.values
     if sum(values) > 0:
         norm_vals = [(val / sum(values)) * 100 for val in values]
     else:
@@ -998,6 +1021,29 @@ def viz_pies_tree(sptree, circular=False, show=True, render=None):
     ts = ete3.TreeStyle()
     ts.legend_position = 4
     ts.layout_fn = layout_pies
+    if circular:
+        ts.mode = "c"
+
+    for el in legend:
+        ts.legend.add_face(
+            ete3.faces.RectFace(width=50, height=50, fgcolor=el[1], bgcolor=el[1]),
+            column=0,
+        )
+        ts.legend.add_face(ete3.faces.TextFace(" " + el[0], fsize=20), column=1)
+    if show:
+        sptree.show(tree_style=ts)
+    if render is not None:
+        sptree.render(render, tree_style=ts)
+
+
+def viz_both_bars_tree(sptree, circular=False, show=True, render=None):
+    palette = ["#ed4c67", "#f69e1f", "#1289a7"]
+    labels = ["L", "D", "T"]
+    legend = list(zip(labels, palette))
+
+    ts = ete3.TreeStyle()
+    ts.legend_position = 4
+    ts.layout_fn = layout_both_bars
     if circular:
         ts.mode = "c"
 

@@ -3,6 +3,7 @@ from .concat import *
 from .utils import *
 from .species import *
 from .discordance import *
+from .ReconciledTreeIO import recPhyloXML_parser
 import os
 import sys
 
