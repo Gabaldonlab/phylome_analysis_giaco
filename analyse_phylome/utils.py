@@ -407,7 +407,7 @@ def scan_for_Us(aln_dir, what="U", replace=False, with_what="C"):
             if file.endswith("clean.fasta"):
                 toread = os.path.join(aln_dir, file)
                 is_U = False
-                cmd = "grep -v '>' " + toread + " | grep " + what
+                cmd = "grep -h -v '>' " + toread + " | grep " + what
                 files_u = run_command_with_return(cmd)
                 if len(files_u) > 0:
                     is_U = True
@@ -483,6 +483,47 @@ def get_all_species(fileTree):
                 leaf.name = leaf.name.split("_")[1]
                 set_sp.add(leaf.name)
     return list(set_sp)
+
+
+def get_all_species_counts(fileTree):
+    """Get all mmnemonics code  and number of trees in which the species is present in best trees file in phylomedb.
+
+    Parameters
+    ----------
+    fileTree : str
+        best tree file from PhylomeDB
+
+    Returns
+    -------
+    list
+        dictionary of mnemonics codes found in file + number of trees.
+
+    """
+    dict_occurence = {}
+    with open(fileTree) as t:
+        for line in t:
+            line = line.split()
+            tree = ete3.Tree(line[3])
+            set_sp = set([name.split("_")[1] for name in tree.get_leaf_names()])
+            for leaf in set_sp:
+                if dict_occurence.get(leaf) is None:
+                    dict_occurence[leaf] = 0
+                dict_occurence[leaf] += 1
+    return dict_occurence
+
+
+def normalize_counts(counts_df, norm_dict):
+    df = counts_df[counts_df.index.isin(norm_dict.keys())]
+    # df = df[~df.index.str.contains("node_")]
+    df = df.apply(lambda value: value / norm_dict[value.name], axis=1)
+    return df
+
+
+def get_all_models_counts(treefile):
+    with open(treefile) as t:
+        models = [line.split()[1] for line in t]
+        dict_counts = dict((x, models.count(x)) for x in set(models))
+        return dict_counts
 
 
 def get_species_name(node_name_string):

@@ -382,75 +382,62 @@ def run_abaccus(
                 gf.write("%s\n" % item)
 
 
-def get_ternary_phylome_data(list_df_csv, tree_dir):
-    data = []
-    # THIS IS BAD:
-    # you need  way to compute the number of species in a phylome
-    # one way is to force the user to put the csv and the species tree in a directory
-    tree_dict = {}
-    for tree in glob.glob(tree_dir + "/*nwk"):
-        phy_id = int("".join(filter(str.isdigit, tree)))
-        tree_dict[phy_id] = tree
+def get_ternary_phylome_data(out_df, tree, method):
+
+    phy_id = int("".join(filter(str.isdigit, tree)))
     # for each phylome in files in directory
-    for df in list_df_csv:
-        # file must cointain either grax or ecce and phylome_id!
-        if "grax" in df:
-            method = "grax"
-        elif "ecce" in df:
-            method = "ecce"
-        else:
-            method = "Unknown"
+    # file must cointain either grax or ecce and phylome_id!
+    if method not in ["grax", "ecce"]:
+        raise ValueError("Method must be either grax or ecce")
 
-        single_df = pd.read_csv(df)
-        phy_id = int("".join(filter(str.isdigit, df)))
+    df = pd.read_csv(out_df)
+    tree = Tree(tree, format=1)
+    num_sp = len(tree.get_leaves())
+    num_genes = len(df)
+    # Sum of each ctegory will be normalized by num genes * num of species
+    norm_factor = num_genes * num_sp
 
-        sprax_tree = Tree(tree_dict[phy_id], format=1)
-        num_sp = len(sprax_tree.get_leaves())
-        num_genes = len(single_df)
-        # Sum of each ctegory will be normalized by num genes * num of species
-        norm_factor = num_genes * num_sp
+    D_norm = sum(df["D"]) / norm_factor
+    T_norm = sum(df["T"]) / norm_factor
+    if method == "grax":
+        L_norm = sum(df["SL"]) / norm_factor
+    elif method == "ecce":
+        L_norm = sum(df["L"]) / norm_factor
 
-        D_norm = sum(single_df["D"]) / norm_factor
-        T_norm = sum(single_df["T"]) / norm_factor
-        if method == "grax":
-            L_norm = sum(single_df["SL"]) / norm_factor
-        elif method == "ecce":
-            L_norm = sum(single_df["L"]) / norm_factor
+    norm_to_one = 1 / sum([D_norm, T_norm, L_norm])
+    D_norm_one = D_norm * norm_to_one
+    T_norm_one = T_norm * norm_to_one
+    L_norm_one = L_norm * norm_to_one
 
-        norm_to_one = 1 / sum([D_norm, T_norm, L_norm])
-        D_norm_one = D_norm * norm_to_one
-        T_norm_one = T_norm * norm_to_one
-        L_norm_one = L_norm * norm_to_one
-
-        row = [
-            phy_id,
-            D_norm,
-            T_norm,
-            L_norm,
-            D_norm_one,
-            T_norm_one,
-            L_norm_one,
-            method,
-            num_sp,
-            num_genes,
-        ]
-        data.append(row)
-    colnames = [
-        "phy_id",
-        "D_norm",
-        "T_norm",
-        "L_norm",
-        "D_norm_one",
-        "T_norm_one",
-        "L_norm_one",
-        "method",
-        "num_sp",
-        "num_genes",
+    row = [
+        phy_id,
+        D_norm,
+        T_norm,
+        L_norm,
+        D_norm_one,
+        T_norm_one,
+        L_norm_one,
+        method,
+        num_sp,
+        num_genes,
     ]
-
-    df = pd.DataFrame(data, columns=colnames)
-    df["phylome"] = df["phy_id"].astype(str)
-    return df
+    #     data.append(row)
+    # colnames = [
+    #     "phy_id",
+    #     "D_norm",
+    #     "T_norm",
+    #     "L_norm",
+    #     "D_norm_one",
+    #     "T_norm_one",
+    #     "L_norm_one",
+    #     "method",
+    #     "num_sp",
+    #     "num_genes",
+    # ]
+    #
+    # df = pd.DataFrame(data, columns=colnames)
+    # df["phylome"] = df["phy_id"].astype(str)
+    return row
 
 
 def plot_ternary_phylome(
@@ -468,7 +455,8 @@ def plot_ternary_phylome(
         c="L_norm_one",
         hover_name="phy_id",
         symbol="method",
-        color="phylome",
+        # think of a way to color it if many phylomes
+        # color="phylome",
         template=template,
     )
     if show:
@@ -531,8 +519,8 @@ def compare_rectree(ecce_rec, grax_rec, matches):
     return only_ecce, only_grax, both
 
 
-def obtain_ecce_counts(out_dir):
-    rec_ecce_files = glob.glob(out_dir + "/*_canonical_symmetric*")
+def get_ecce_counts(out_dir, pattern="canonical_symmetric"):
+    rec_ecce_files = glob.glob(out_dir + "/*" + pattern + "*")
     parser = recPhyloXML_parser()
 
     # dict_long = {}
