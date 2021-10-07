@@ -90,13 +90,18 @@ if args.method == "ecce":
     ap.get_ecce_data(trees, args.species_tree, args.outdir)
     log_file = args.outdir + "/phylome_" + phy_id + "_ecce.out"
     log_data = args.outdir + "/phylome_" + phy_id + "_ecce.csv"
+    count_data = args.outdir + "/sp_count_phylome_" + phy_id + "_ecce.csv"
+
     cmd = (
         args.exe
         + " species.file="
         + args.species_tree
         + " gene.file="
         + ecce_trees
-        + " dated=0 verbose=1 print.reconciliations=1 recPhyloXML.reconciliation=true output.dir="
+        + " dated=0 verbose=1 print.reconciliations=1 recPhyloXML.reconciliation=true print.newick.species.tree.file="
+        + "phylome_"
+        + phy_id
+        + "_ecce.nwk output.dir="
         + args.outdir
         + "/ecce_results_phylome_"
         + phy_id
@@ -109,6 +114,9 @@ if args.method == "ecce":
     ecce_dist = args.outdir + "/ecce_" + phy_id + "_dist.html"
     ecce_df = ap.get_ecce_df(trees, log_file)
     ecce_df.to_csv(log_data, index=False)
+    rec_dir = args.outdir + "/ecce_results_phylome_" + phy_id
+    ecce_counts = ap.get_ecce_counts(rec_dir)
+    ecce_counts.to_csv(count_data)
     ap.ternary_ecce_plot(ecce_df, show=False, out_img=ter_ecce)
     ap.dist_ecce_plot(ecce_df, show=False, out_img=ecce_dist)
 
