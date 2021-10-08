@@ -471,20 +471,20 @@ def plot_ternary_phylome(
             fig.write_image(out_img)
 
 
-def get_translation_dict(ecce_rec, grax_rec):
+def get_translation_dict(ecce_sp, grax_sp):
     ecce_names = []
-    for node in ecce_rec.spTree.traverse():
+    for node in ecce_sp.traverse():
         ecce_names.append(node.name)
     # prune unsampled leaf as generax does not have it
-    ecce_rec.spTree.prune([el for el in ecce_names if el != "UNSAMPLED"])
+    ecce_sp.prune([el for el in ecce_names if el != "UNSAMPLED"])
 
     ecce_dict = {}
-    for node in ecce_rec.spTree.traverse():
+    for node in ecce_sp.traverse():
         desc = [el.name for el in node.get_descendants() if el.is_leaf()]
         ecce_dict[node.name] = desc
 
     grax_dict = {}
-    for node in grax_rec.spTree.traverse():
+    for node in grax_sp.traverse():
         desc = [el.name for el in node.get_descendants() if el.is_leaf()]
         grax_dict[node.name] = desc
     # find keys with same descendants so that internal nodes may be translated

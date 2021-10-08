@@ -999,8 +999,8 @@ def read_per_sp_counts(events_file):
     df["#D"] = df["#D"].str.replace(r"D=", "")
     df["#T"] = df["#T"].str.replace(r"T=", "")
     df["#TL"] = df["#TL"].str.replace(r"TL=", "")
-    cols = df.columns
-    df[cols] = df[cols].apply(pd.to_numeric, errors="coerce")
+    df[df.columns] = df[df.columns].apply(pd.to_numeric, errors="coerce")
+    df.columns = [col.replace("#", "") for col in df.columns]
     return df
 
 
