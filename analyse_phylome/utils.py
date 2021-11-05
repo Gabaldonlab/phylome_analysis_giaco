@@ -378,7 +378,9 @@ def get_generax_data(gene_trees, out_dir, aln_dir=None, keep_model=True):
                     elif os.path.exists(aln_file):
                         f.write("alignment = " + aln_file + "\n")
                     else:
-                        sys.exit("could not find file: " + aln_file)
+                        # sys.exit("could not find file: " + aln_file)
+                        print("could not find file: " + aln_file)
+                        continue
                 f.write("mapping = " + out_mapfile + "\n")
 
 
@@ -504,11 +506,15 @@ def get_all_species_counts(fileTree):
         for line in t:
             line = line.split()
             tree = ete3.Tree(line[3])
-            set_sp = set([name.split("_")[1] for name in tree.get_leaf_names()])
+            list_sp = [name.split("_")[1] for name in tree.get_leaf_names()]
+            set_sp = set(list_sp)
             for leaf in set_sp:
                 if dict_occurence.get(leaf) is None:
-                    dict_occurence[leaf] = 0
-                dict_occurence[leaf] += 1
+                    dict_occurence[leaf] = [0, 0]
+                # if divided:
+                dict_occurence[leaf][1] += list_sp.count(leaf)
+                # else:
+                dict_occurence[leaf][0] += 1
     return dict_occurence
 
 
@@ -519,11 +525,39 @@ def normalize_counts(counts_df, norm_dict):
     return df
 
 
-def get_all_models_counts(treefile):
+def get_all_models_counts(treefile, data=False):
     with open(treefile) as t:
-        models = [line.split()[1] for line in t]
+        models = [(line.split()[0], line.split()[1]) for line in t]
         dict_counts = dict((x, models.count(x)) for x in set(models))
-        return dict_counts
+        if data:
+            df = []
+            for k in models:
+                if "+" in k[1]:
+                    model = k[1][: k[1].find("+")]
+                else:
+                    model = k[1]
+                if "+F" in k[1]:
+                    freq = True
+                else:
+                    freq = False
+                if "+I" in k[1]:
+                    inv = True
+                else:
+                    inv = False
+                if "+G" in k[1]:
+                    gamma = "G"
+                    num_cat = int(k[1][k[1].find("+G") + 2])
+                elif "+R" in k[1]:
+                    gamma = "R"
+                    num_cat = int(k[1][k[1].find("+R") + 2])
+                else:
+                    gamma = "None"
+                    num_cat = 0
+                df.append([k[0], model, freq, inv, gamma, num_cat])
+            dict_counts = pd.DataFrame(
+                df, columns=["gene", "model", "freq", "inv", "gamma", "num_cat"]
+            )
+    return dict_counts
 
 
 def get_species_name(node_name_string):
@@ -648,6 +682,71 @@ def get_tax_dict_uniprot(tree, uniprot_df):  # add solve species??
         print("You may want to add it manually")
 
     return taxo_dict
+
+
+def get_three_consistency(dict_leaves, trees):
+    # EXAMPLE
+    # treefile812 = "test_data/best_trees812.nwk"
+    #
+    # with open(treefile812) as bt:
+    #     trees812 = [ap.load_tree(line.split()[3]) for line in bt]
+    #
+    # dict_cnidaria = {"cnidaria": ["NEMVE"], "ctenophora": ["MNELE"], "porifera": ["AMPQE"]}
+    #
+    # cnidaria = get_three_consistency(dict_cnidaria, trees812)
+    # cnidaria
+    all = [y for el in [*dict_leaves.values()] for y in el]
+
+    three_trees = []
+    taxa = list(dict_leaves.keys())
+
+    for tree in trees:
+        t = tree.copy()
+        tokeep = [node for node in t if node.species in all]
+        if len(tokeep) == 0:
+            continue
+        t.prune(tokeep)
+
+        num_1 = [n for n in t if n.species in dict_leaves[taxa[0]]]
+        num_2 = [n for n in t if n.species in dict_leaves[taxa[1]]]
+        num_3 = [n for n in t if n.species in dict_leaves[taxa[2]]]
+
+        for n in num_1:
+            n.name = taxa[0]
+        for n in num_2:
+            n.name = taxa[1]
+        for n in num_3:
+            n.name = taxa[2]
+
+        t.set_species_naming_function(lambda node: node.name)
+        t = t.collapse_lineage_specific_expansions()
+        if len(set([n.species for n in t])) < 3:
+            continue
+
+        for a in t.get_speciation_trees()[2]:
+            # # only get subtree with at least one from all groups
+            # num_1 = [n for n in a if n.name in dict_leaves[taxa[0]]]
+            # sp_1 = [n.name for n in num_1]
+            # num_2 = [n for n in a if n.name in dict_leaves[taxa[1]]]
+            # sp_2 = [n.name for n in num_2]
+            # num_3 = [n for n in a if n.name in dict_leaves[taxa[2]]]
+            # sp_3 = [n.name for n in num_3]
+            # if len(num_1) > 0 and len(num_2) > 0 and len(num_3) > 0:
+            #     mono_1 = a.check_monophyly(sp_1, target_attr="name")[0]
+            #     mono_2 = a.check_monophyly(sp_2, target_attr="name")[0]
+            #     mono_3 = a.check_monophyly(sp_3, target_attr="name")[0]
+            #     # only consider trees where each group is monophyletyc
+            #     if mono_1 and mono_2 and mono_3:
+            if len(a.get_leaf_names()) == 3:
+                three_trees.append(a)
+
+    dict_topo = {}
+    for t in three_trees:
+        t.sort_descendants()
+        topo = t.write(format=9)
+        dict_topo[topo] = dict_topo.get(topo, 0) + 1
+
+    return dict_topo
 
 
 def get_tax_dict_info(info_txt):
@@ -854,6 +953,9 @@ def annotate_boxes(taxo_sptree, whole_tax_dict, target=5):
             node = out_sptree & nodes[0]
             node.set_style(nst)
     return out_sptree, color_dict
+
+
+# def get_common_ancestor_rank(sptree, tax_dict):
 
 
 def layout_species_taxon(node):

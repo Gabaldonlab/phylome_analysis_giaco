@@ -20,3 +20,4 @@ scripts/
 examples/example_misc.ipynb
 recPhyloXML
 out*
+.Rproj.user
