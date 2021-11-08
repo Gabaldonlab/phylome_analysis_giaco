@@ -4,7 +4,7 @@ import sys
 from .utils import load_species_name, load_species_name_whole, run_command
 
 
-def obtain_duptree_file(treeFile, duptreeFile, midpoint=False):
+def obtain_duptree_file(treeFile, duptreeFile, midpoint=False, weighted=False):
     """Prepare files for duptree.
 
     Parameters
@@ -30,6 +30,17 @@ def obtain_duptree_file(treeFile, duptreeFile, midpoint=False):
         t = ete3.PhyloTree(dades[-1], sp_naming_function=load_species_name)
         for leaf in t.iter_leaves():
             leaf.name = leaf.species
+        if weighted:
+            nms = [
+                node.support
+                for node in t.traverse()
+                if not node.is_leaf() and node.support != 1.0
+            ]
+            if nms != []:
+                weight = sum(nms) / (len(nms) * 100)
+                string = "[&WEIGHT=" + str(weight) + "]"
+        else:
+            string = ""
         # this is very important! before each tree was rooted with midpoint rooting I don't know why.
         t.resolve_polytomy()
         # Root tree for new duptree
@@ -37,7 +48,7 @@ def obtain_duptree_file(treeFile, duptreeFile, midpoint=False):
         if midpoint:
             t.set_outgroup(t.get_midpoint_outgroup())
             # if spe2age:
-        outfile.write(t.write(format=9) + "\n")
+        outfile.write(string + t.write(format=9) + "\n")
     outfile.close()
 
 
